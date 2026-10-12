@@ -1,0 +1,40 @@
+{
+  "name": "the-collective",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "THE COLLECTIVE Discord bot and admin dashboard.",
+  "engines": {
+    "node": ">=24.17.0 <25"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @collective/domain && npm run build -w @collective/db && npm run build -w @collective/ui && npm run build -w @collective/bot && npm run build -w @collective/admin",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "prisma:generate": "npm run generate -w @collective/db",
+    "prisma:deploy": "npm run deploy -w @collective/db",
+    "start:bot": "npm run prisma:deploy && node apps/bot/dist/index.js",
+    "start:worker": "npm run prisma:deploy && node apps/bot/dist/worker.js",
+    "start:admin": "node --env-file-if-exists=.env apps/admin/dist-server/serve.js",
+    "commands:plan": "node --env-file-if-exists=.env apps/bot/dist/register.js",
+    "boot:check": "node scripts/boot-check.mjs",
+    "backup:database": "node scripts/backup-database.mjs",
+    "backup:secrets": "node --env-file-if-exists=.env scripts/secret-backup.mjs",
+    "backup:rehearse": "node scripts/restore-rehearsal.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "globals": "17.13.0",
+    "@types/node": "24.19.1",
+    "eslint": "10.12.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "5.0.3"
+  }
+}

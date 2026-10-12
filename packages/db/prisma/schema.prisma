@@ -1,0 +1,2978 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Applied application schema revision. Product modules add their own tables.
+model FoundationRevision {
+  id         String   @id
+  revision   String
+  summary    String
+  recordedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("foundation_revision")
+}
+
+model Guild {
+  guildId     String   @id
+  ownerUserId String?
+  timezone    String   @default("Australia/Perth")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("guild")
+}
+
+model ConfigVersion {
+  id          String    @id
+  guildId     String
+  version     Int
+  state       String
+  document    Json
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  publishedAt DateTime? @db.Timestamptz(6)
+
+  @@unique([guildId, version])
+  @@index([guildId, state])
+  @@map("config_version")
+}
+
+model CapabilityGrant {
+  id         String @id
+  guildId    String
+  roleId     String
+  capability String
+
+  @@unique([guildId, roleId, capability])
+  @@map("capability_grant")
+}
+
+model DashboardGrant {
+  id        String @id
+  guildId   String
+  kind      String
+  subjectId String
+
+  @@unique([guildId, kind, subjectId])
+  @@map("dashboard_grant")
+}
+
+model FeatureFlag {
+  id          String   @id
+  guildId     String
+  moduleKey   String
+  maintenance Boolean  @default(false)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, moduleKey])
+  @@map("feature_flag")
+}
+
+model AuditRecord {
+  id          String   @id
+  guildId     String
+  actorUserId String
+  action      String
+  targetType  String
+  targetId    String
+  reason      String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, createdAt])
+  @@map("audit_record")
+}
+
+model Job {
+  id             String    @id
+  guildId        String?
+  jobType        String
+  payload        Json
+  idempotencyKey String    @unique
+  status         String
+  runAt          DateTime  @db.Timestamptz(6)
+  attempts       Int       @default(0)
+  maxAttempts    Int
+  leaseOwner     String?
+  leaseUntil     DateTime? @db.Timestamptz(6)
+  lastError      String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([status, runAt])
+  @@map("job")
+}
+
+model OutboxMessage {
+  id             String    @id
+  guildId        String?
+  eventType      String
+  payload        Json
+  idempotencyKey String    @unique
+  status         String
+  attempts       Int       @default(0)
+  maxAttempts    Int
+  availableAt    DateTime  @db.Timestamptz(6)
+  leaseOwner     String?
+  leaseUntil     DateTime? @db.Timestamptz(6)
+  lastError      String?
+  deliveredAt    DateTime? @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([status, availableAt])
+  @@map("outbox_message")
+}
+
+model InteractionSession {
+  id                 String    @id
+  guildId            String
+  actorUserId        String
+  revision           Int
+  requiredCapability String?
+  purpose            String
+  payload            Json
+  expiresAt          DateTime  @db.Timestamptz(6)
+  consumedAt         DateTime? @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, actorUserId])
+  @@map("interaction_session")
+}
+
+model OauthState {
+  id         String    @id
+  stateHash  String    @unique
+  expiresAt  DateTime  @db.Timestamptz(6)
+  consumedAt DateTime? @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("oauth_state")
+}
+
+model AdminSession {
+  id        String    @id
+  tokenHash String    @unique
+  csrfToken String
+  userId    String
+  guildId   String
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("admin_session")
+}
+
+model AuthAttempt {
+  id          String   @id
+  subjectHash String
+  windowStart DateTime @db.Timestamptz(6)
+  count       Int
+
+  @@unique([subjectHash, windowStart])
+  @@map("auth_attempt")
+}
+
+model CommunitySettings {
+  guildId   String   @id
+  document  Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("community_settings")
+}
+
+model VerificationRecord {
+  id            String    @id
+  guildId       String
+  userId        String
+  status        String
+  method        String?
+  failureCount  Int       @default(0)
+  cooldownUntil DateTime? @db.Timestamptz(6)
+  verifiedAt    DateTime? @db.Timestamptz(6)
+  revokedAt     DateTime? @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId])
+  @@map("verification_record")
+}
+
+model CaptchaChallenge {
+  id            String    @id
+  guildId       String
+  userId        String
+  answerHash    String
+  expiresAt     DateTime  @db.Timestamptz(6)
+  invalidatedAt DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, userId])
+  @@map("captcha_challenge")
+}
+
+model AssistanceRequest {
+  id         String    @id
+  guildId    String
+  userId     String
+  note       String
+  status     String
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  resolvedAt DateTime? @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("assistance_request")
+}
+
+model RolePanel {
+  id         String    @id
+  guildId    String
+  name       String
+  mode       String
+  selection  String
+  retiredAt  DateTime? @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId])
+  @@map("role_panel")
+}
+
+model RolePanelOption {
+  id                   String @id
+  panelId              String
+  roleId               String
+  label                String
+  exclusiveGroup       String?
+  prerequisiteRoleIds  Json
+  emoji                String?
+
+  @@unique([panelId, roleId])
+  @@map("role_panel_option")
+}
+
+model RoleEntitlement {
+  id                 String    @id
+  guildId            String
+  userId             String
+  roleId             String
+  kind               String
+  source             String
+  sourceId           String
+  expiresAt          DateTime? @db.Timestamptz(6)
+  pausedRemainingMs  Int?
+  endedAt            DateTime? @db.Timestamptz(6)
+  endReason          String?
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId, roleId, source, sourceId])
+  @@index([expiresAt])
+  @@map("role_entitlement")
+}
+
+model LinkedAccount {
+  id              String    @id
+  guildId         String
+  userId          String
+  provider        String
+  handle          String
+  visibility      String
+  ownership       String
+  providerSubject String?
+  unlinkedAt      DateTime? @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId, provider])
+  @@map("linked_account")
+}
+
+model RolePanelPost {
+  messageId String   @id
+  guildId   String
+  channelId String
+  panelId   String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([panelId])
+  @@map("role_panel_post")
+}
+
+model ModerationPolicy {
+  guildId   String   @id
+  version   Int
+  label     String
+  document  Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("moderation_policy")
+}
+
+model ModerationCase {
+  id             String    @id
+  guildId        String
+  targetUserId   String
+  actorUserId    String
+  actorKind      String
+  action         String
+  outcome        String
+  failureReason  String?
+  reason         String
+  evidence       Json
+  ruleId         String?
+  ruleVersion    Int?
+  points         Int       @default(0)
+  relatedCaseId  String?
+  expiresAt      DateTime? @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, targetUserId])
+  @@map("moderation_case")
+}
+
+model WarningPoint {
+  id        String    @id
+  guildId   String
+  userId    String
+  caseId    String
+  points    Int
+  status    String
+  expiresAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, userId, status])
+  @@map("warning_point")
+}
+
+model ModerationAppeal {
+  id         String    @id
+  guildId    String
+  caseId     String
+  userId     String
+  note       String
+  status     String
+  resolution String?
+  ticketId   String?
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  resolvedAt DateTime? @db.Timestamptz(6)
+
+  @@index([guildId, caseId])
+  @@map("moderation_appeal")
+}
+
+model MemberReport {
+  id             String   @id
+  guildId        String
+  reporterUserId String
+  targetUserId   String
+  note           String
+  status         String
+  ticketStatus   String
+  ticketId       String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, reporterUserId])
+  @@map("member_report")
+}
+
+model StaffLog {
+  id               String   @id
+  guildId          String
+  kind             String
+  channelId        String?
+  actorUserId      String?
+  actorConfidence  String
+  targetId         String?
+  content          String?
+  contentLabel     String
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  retainUntil      DateTime @db.Timestamptz(6)
+
+  @@index([guildId, createdAt])
+  @@index([retainUntil])
+  @@map("staff_log")
+}
+
+model ModerationSignal {
+  id           String   @id
+  guildId      String
+  userId       String
+  channelId    String?
+  kind         String
+  contentHash  String?
+  mentionCount Int      @default(0)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, kind, createdAt])
+  @@map("moderation_signal")
+}
+
+model TicketSettings {
+  guildId   String   @id
+  version   Int
+  label     String
+  document  Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("ticket_settings")
+}
+
+model TicketPanel {
+  id          String   @id
+  guildId     String
+  label       String
+  categoryIds Json
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId])
+  @@map("ticket_panel")
+}
+
+model SupportTicket {
+  id             String    @id
+  guildId        String
+  number         Int
+  openerUserId   String
+  status         String
+  assigneeUserId String?
+  formAnswers    Json
+  summary        String?
+  policySnapshot Json
+  channelId      String?
+  channelState   String
+  openedAt       DateTime  @default(now()) @db.Timestamptz(6)
+  closedAt       DateTime? @db.Timestamptz(6)
+  closeReason    String?
+  lastHumanAt    DateTime  @db.Timestamptz(6)
+  remindedAt     DateTime? @db.Timestamptz(6)
+  reopenUntil    DateTime? @db.Timestamptz(6)
+  contentLabel   String
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, number])
+  @@index([guildId, openerUserId, status])
+  @@map("support_ticket")
+}
+
+model TicketMessage {
+  id           String   @id
+  ticketId     String
+  guildId      String
+  authorUserId String
+  authorKind   String
+  visibility   String
+  body         String?
+  contentLabel String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_message")
+}
+
+model TicketReference {
+  id                  String   @id
+  ticketId            String
+  guildId             String
+  kind                String
+  targetId            String
+  integrationStatus   String
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([ticketId, kind, targetId])
+  @@index([guildId, kind])
+  @@map("ticket_reference")
+}
+
+model ProgressionSettings {
+  guildId   String   @id
+  version   Int
+  label     String
+  document  Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("progression_settings")
+}
+
+model MemberProgression {
+  guildId         String
+  userId          String
+  xp              Int      @default(0)
+  rankBandId      String?
+  lastMessageAt   DateTime? @db.Timestamptz(6)
+  lastHash        String?
+  lastHashAt      DateTime? @db.Timestamptz(6)
+  dailyKey        String?
+  dailyMessageXp  Int      @default(0)
+  dailyVoiceXp    Int      @default(0)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId])
+  @@map("member_progression")
+}
+
+model DossierProfile {
+  guildId     String
+  userId      String
+  bio         String?
+  bioPublic   Boolean  @default(false)
+  title       String?
+  frame       String?
+  background  String?
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId])
+  @@map("dossier_profile")
+}
+
+model BirthdayRecord {
+  guildId    String
+  userId     String
+  month      Int?
+  day        Int?
+  year       Int?
+  timeZone   String
+  announce   Boolean  @default(false)
+  editedAt   DateTime? @db.Timestamptz(6)
+  deletedAt  DateTime? @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId])
+  @@map("birthday_record")
+}
+
+model InviteMembership {
+  guildId       String
+  userId        String
+  confidence    String
+  inviterUserId String?
+  joinedAt      DateTime @db.Timestamptz(6)
+  verifiedAt    DateTime? @db.Timestamptz(6)
+  rewardedAt    DateTime? @db.Timestamptz(6)
+  rejoin        Boolean  @default(false)
+  suspicious    Boolean  @default(false)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId])
+  @@index([guildId, inviterUserId])
+  @@map("invite_membership")
+}
+
+model InviteEvent {
+  id            String   @id
+  guildId       String
+  userId        String
+  confidence    String
+  inviterUserId String?
+  rejoin        Boolean
+  suspicious    Boolean
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, createdAt])
+  @@map("invite_event")
+}
+
+model RewardEvent {
+  id               String   @id
+  guildId          String
+  userId           String
+  source           String
+  sourceId         String
+  kind             String
+  amount           Int?
+  ledgerStatus     String
+  status           String
+  idempotencyKey   String   @unique
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, userId, source])
+  @@map("reward_event")
+}
+
+model MemberAchievement {
+  guildId       String
+  userId        String
+  achievementId String
+  earnedAt      DateTime @db.Timestamptz(6)
+
+  @@id([guildId, userId, achievementId])
+  @@map("member_achievement")
+}
+
+model Commendation {
+  id         String   @id
+  guildId    String
+  fromUserId String
+  toUserId   String
+  kind       String
+  category   String
+  reason     String
+  status     String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, fromUserId, toUserId])
+  @@map("commendation")
+}
+
+model VoiceSession {
+  guildId         String
+  userId          String
+  channelId       String
+  lastAwardedAt   DateTime @db.Timestamptz(6)
+  eligibleHumans  Int
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId])
+  @@map("voice_session")
+}
+
+model SeasonSettings {
+  guildId   String   @id
+  version   Int
+  label     String
+  document  Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("season_settings")
+}
+
+model SeasonState {
+  guildId    String   @id
+  seasonId   String
+  startsAt   DateTime @db.Timestamptz(6)
+  endsAt     DateTime @db.Timestamptz(6)
+  rolledFrom String?
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("season_state")
+}
+
+model SeasonalScore {
+  guildId  String
+  userId   String
+  seasonId String
+  seals    Int    @default(0)
+
+  @@id([guildId, userId, seasonId])
+  @@index([guildId, seasonId])
+  @@map("seasonal_score")
+}
+
+model LifetimeScore {
+  guildId String
+  userId  String
+  seals   Int    @default(0)
+
+  @@id([guildId, userId])
+  @@map("lifetime_score")
+}
+
+model SeasonArchive {
+  id           String   @id
+  guildId      String
+  seasonId     String
+  category     String
+  availability String
+  standings    Json
+  preservation Json
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([guildId, seasonId, category])
+  @@map("season_archive")
+}
+
+model Poll {
+  id              String   @id
+  guildId         String
+  question        String
+  mode            String
+  anonymous       Boolean
+  eligibleRoleIds Json
+  opensAt         DateTime @db.Timestamptz(6)
+  closesAt        DateTime @db.Timestamptz(6)
+  status          String
+  createdBy       String
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("poll")
+}
+
+model PollChoice {
+  id       String @id
+  pollId   String
+  guildId  String
+  label    String
+  position Int
+
+  @@index([pollId])
+  @@map("poll_choice")
+}
+
+model PollVote {
+  id        String   @id
+  pollId    String
+  guildId   String
+  userId    String
+  choiceId  String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([pollId, userId, choiceId])
+  @@index([pollId])
+  @@map("poll_vote")
+}
+
+model TempRoom {
+  id              String    @id
+  guildId         String
+  kind            String
+  ownerUserId     String
+  name            String
+  privacy         String
+  locked          Boolean   @default(false)
+  capacity        Int       @default(10)
+  occupants       Json
+  invitedUserIds  Json
+  lastHumanAt     DateTime  @db.Timestamptz(6)
+  emptySince      DateTime? @db.Timestamptz(6)
+  channelId       String?
+  channelState    String
+  status          String
+  closeReason     String?
+  missionHold     Boolean   @default(false)
+  needsStaff      Boolean   @default(false)
+  disconnectState String
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  closedAt        DateTime? @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status, kind])
+  @@map("temp_room")
+}
+
+model EconomySettings {
+  guildId   String   @id
+  version   Int
+  label     String
+  document  Json
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("economy_settings")
+}
+
+model Wallet {
+  guildId        String
+  userId         String
+  currency       String
+  availableMinor BigInt   @default(0)
+  escrowMinor    BigInt   @default(0)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId, currency])
+  @@index([guildId, currency])
+  @@map("wallet")
+}
+
+model LedgerEntry {
+  id              String   @id
+  guildId         String
+  userId          String
+  currency        String
+  direction       String
+  kind            String
+  amountMinor     BigInt
+  source          String
+  sourceId        String
+  pace            String
+  idempotencyKey  String   @unique
+  reversesEntryId String?
+  reason          String
+  actorUserId     String
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, userId, createdAt])
+  @@index([guildId, kind])
+  @@map("ledger_entry")
+}
+
+model IssuanceBudget {
+  guildId         String
+  scope           String
+  periodKey       String
+  subjectId       String
+  authorizedMinor BigInt
+  spentMinor      BigInt   @default(0)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, scope, periodKey, subjectId])
+  @@map("issuance_budget")
+}
+
+model IngotMarket {
+  guildId             String    @id
+  protectedReserve    BigInt
+  inventory           BigInt
+  eventTreasury       BigInt
+  chargeReserve       BigInt
+  backingMinor        BigInt
+  revision            Int
+  curveVersion        Int
+  baselineMarks       BigInt
+  activeSupply        BigInt
+  spreadBps           Int
+  quoteSeconds        Int
+  paused              Boolean   @default(false)
+  panelChannelId      String?
+  panelCoalesceUntil  DateTime? @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@map("ingot_market")
+}
+
+model MarketQuote {
+  id               String    @id
+  guildId          String
+  userId           String
+  side             String
+  quantity         BigInt
+  totalMinor       BigInt
+  revision         Int
+  curveVersion     Int
+  inventoryAtQuote BigInt
+  status           String
+  idempotencyKey   String    @unique
+  expiresAt        DateTime  @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, userId, status])
+  @@map("market_quote")
+}
+
+model MarketTrade {
+  id              String   @id
+  guildId         String
+  quoteId         String
+  userId          String
+  side            String
+  quantity        BigInt
+  totalMinor      BigInt
+  inventoryAfter  BigInt
+  revisionAfter   Int
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, createdAt])
+  @@map("market_trade")
+}
+
+model CollapseCharge {
+  id             String    @id
+  guildId        String
+  holderUserId   String
+  quantity       BigInt
+  status         String
+  idempotencyKey String    @unique
+  announcement   String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  activatedAt    DateTime? @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("collapse_charge")
+}
+
+model PublicationTemplate {
+  id            String   @id
+  guildId       String
+  name          String
+  document      Json
+  authorUserId  String
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, name])
+  @@map("publication_template")
+}
+
+model PublicationDraft {
+  id                 String   @id
+  guildId            String
+  authorUserId       String
+  revision           Int
+  committedRevision  Int?
+  status             String
+  label              String
+  document           Json
+  templateId         String?
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("publication_draft")
+}
+
+model PublicationReview {
+  id             String    @id
+  guildId        String
+  draftId        String
+  revision       Int
+  channelId      String
+  status         String
+  delivery       String
+  preview        Json
+  controls       Json
+  feedback       String?
+  actorUserId    String?
+  decidedAt      DateTime? @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, draftId, status])
+  @@map("publication_review")
+}
+
+model PublicationMessage {
+  id                   String    @id
+  guildId              String
+  draftId              String
+  reviewId             String
+  revision             Int
+  destinationChannelId String
+  discordMessageId     String?
+  delivery             String
+  status               String
+  mode                 String
+  snapshot             Json
+  authorUserId         String
+  approverUserId       String
+  scheduledFor         DateTime? @db.Timestamptz(6)
+  publishedAt          DateTime? @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@index([draftId, status])
+  @@map("publication_message")
+}
+
+model PublicationHistory {
+  id             String   @id
+  guildId        String
+  messageId      String
+  draftId        String
+  revision       Int
+  snapshot       Json
+  authorUserId   String
+  approverUserId String
+  recordedAt     DateTime @db.Timestamptz(6)
+
+  @@index([messageId, revision])
+  @@map("publication_history")
+}
+
+model AnnouncementSeries {
+  id                 String    @id
+  guildId            String
+  draftId            String
+  approvedRevision   Int
+  destination        String
+  cadence            String
+  timezone           String
+  hour               Int
+  minute             Int
+  weekday            Int?
+  dayOfMonth         Int?
+  endsAt             DateTime? @db.Timestamptz(6)
+  removeAfterMinutes Int?
+  status             String
+  nextRunAt          DateTime  @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status, nextRunAt])
+  @@map("announcement_series")
+}
+
+model AnnouncementDelivery {
+  id               String    @id
+  guildId          String
+  seriesId         String
+  occurrenceKey    String
+  status           String
+  snapshot         Json
+  delivery         String
+  discordMessageId String?
+  expiresAt        DateTime? @db.Timestamptz(6)
+  reason           String    @default("")
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([seriesId, occurrenceKey])
+  @@index([guildId, createdAt])
+  @@map("announcement_delivery")
+}
+
+model ManagedPin {
+  id               String    @id
+  guildId          String
+  channelId        String
+  messageId        String
+  status           String
+  delivery         String
+  discordMessageId String?
+  expiresAt        DateTime? @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, channelId, status])
+  @@map("managed_pin")
+}
+
+model StickyChannel {
+  id                String    @id
+  guildId           String
+  channelId         String
+  content           String
+  threshold         Int
+  cooldownMs        Int
+  humanCount        Int       @default(0)
+  lastPostedAt      DateTime? @db.Timestamptz(6)
+  currentDeliveryId String?
+  status            String
+  expiresAt         DateTime? @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, channelId])
+  @@map("sticky_channel")
+}
+
+model StickyDelivery {
+  id               String   @id
+  guildId          String
+  stickyId         String
+  channelId        String
+  content          String
+  status           String
+  delivery         String
+  discordMessageId String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([stickyId, status])
+  @@map("sticky_delivery")
+}
+
+model ReplyRule {
+  id                 String   @id
+  guildId            String
+  name               String
+  kind               String
+  pattern            String
+  priority           Int
+  channelIds         Json
+  excludedChannelIds Json
+  roleIds            Json
+  excludedRoleIds    Json
+  variants           Json
+  visibility         String
+  secret             Boolean  @default(false)
+  cooldownMs         Int
+  status             String
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status, priority])
+  @@map("reply_rule")
+}
+
+model ReplyCooldown {
+  id        String   @id
+  ruleId    String
+  scope     String
+  subjectId String
+  lastAt    DateTime @db.Timestamptz(6)
+
+  @@unique([ruleId, scope, subjectId])
+  @@map("reply_cooldown")
+}
+
+model ReplyLog {
+  id         String   @id
+  guildId    String
+  ruleId     String
+  variant    String
+  visibility String
+  source     String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, createdAt])
+  @@map("reply_log")
+}
+
+model FeedSource {
+  id             String   @id
+  guildId        String
+  name           String
+  adapter        String
+  url            String   @default("")
+  mode           String
+  destination    String   @default("")
+  lastExternalId String   @default("")
+  status         String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("feed_source")
+}
+
+model FeedItem {
+  id         String   @id
+  guildId    String
+  sourceId   String
+  externalId String
+  canonical  String
+  title      String
+  url        String
+  summary    String
+  category   String
+  mode       String
+  status     String
+  draftId    String?
+  delivery   String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([sourceId, externalId])
+  @@index([guildId, createdAt])
+  @@map("feed_item")
+}
+
+model DistributionAlert {
+  id        String   @id
+  guildId   String
+  kind      String
+  targetId  String
+  reason    String
+  delivery  String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, createdAt])
+  @@map("distribution_alert")
+}
+
+model EventTemplate {
+  id              String   @id
+  guildId         String
+  name            String
+  game            String
+  description     String
+  links           String
+  capacity        Int
+  waitlist        Boolean
+  rewardMarks     Int
+  rewardBudget    Int
+  durationMinutes Int
+  authorUserId    String
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, name])
+  @@map("event_template")
+}
+
+model EventSeries {
+  id              String    @id
+  guildId         String
+  templateId      String?
+  name            String
+  game            String
+  description     String
+  links           String
+  hostUserId      String
+  cadence         String
+  timezone        String
+  hour            Int
+  minute          Int
+  weekday         Int?
+  dayOfMonth      Int?
+  endsAt          DateTime? @db.Timestamptz(6)
+  capacity        Int
+  waitlist        Boolean
+  rewardMarks     Int
+  rewardBudget    Int
+  durationMinutes Int
+  status          String
+  nextStartsAt    DateTime  @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status, nextStartsAt])
+  @@map("event_series")
+}
+
+model EventOccurrence {
+  id              String    @id
+  guildId         String
+  seriesId        String
+  occurrenceKey   String
+  name            String
+  game            String
+  description     String
+  links           String
+  hostUserId      String
+  timezone        String
+  startsAt        DateTime  @db.Timestamptz(6)
+  endsAt          DateTime  @db.Timestamptz(6)
+  capacity        Int
+  waitlist        Boolean
+  rewardMarks     Int
+  rewardBudget    Int
+  rewardSpent     Int       @default(0)
+  status          String
+  detached        Boolean   @default(false)
+  recap           String    @default("")
+  discordEventId  String?
+  syncStatus      String
+  syncReason      String    @default("")
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([seriesId, occurrenceKey])
+  @@index([guildId, startsAt])
+  @@map("event_occurrence")
+}
+
+model EventRsvp {
+  id           String   @id
+  guildId      String
+  occurrenceId String
+  userId       String
+  response     String
+  seat         String
+  checkedIn    Boolean  @default(false)
+  attended     Boolean  @default(false)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([occurrenceId, userId])
+  @@index([occurrenceId, seat])
+  @@map("event_rsvp")
+}
+
+model EventSync {
+  id              String   @id
+  guildId         String
+  occurrenceId    String
+  action          String
+  status          String
+  reason          String
+  discordEventId  String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([occurrenceId, createdAt])
+  @@map("event_sync")
+}
+
+model EventLink {
+  id           String   @id
+  guildId      String
+  occurrenceId String
+  kind         String
+  targetId     String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([occurrenceId, kind, targetId])
+  @@map("event_link")
+}
+
+model EventReminder {
+  id            String   @id
+  guildId       String
+  occurrenceId  String
+  offsetMinutes Int
+  status        String
+  delivery      String
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([occurrenceId, offsetMinutes])
+  @@map("event_reminder")
+}
+
+model Crew {
+  id           String   @id
+  guildId      String
+  name         String
+  game         String
+  platform     String
+  region       String
+  leaderUserId String
+  rewardMarks  Int
+  status       String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("crew")
+}
+
+model CrewMember {
+  id        String   @id
+  guildId   String
+  crewId    String
+  userId    String
+  role      String
+  status    String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([crewId, userId])
+  @@index([guildId, userId])
+  @@map("crew_member")
+}
+
+model CrewHistory {
+  id          String   @id
+  guildId     String
+  crewId      String
+  action      String
+  actorUserId String
+  detail      String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([crewId, createdAt])
+  @@map("crew_history")
+}
+
+model CrewSession {
+  id          String   @id
+  guildId     String
+  crewId      String?
+  name        String
+  game        String
+  platform    String
+  region      String
+  hostUserId  String
+  startsAt    DateTime @db.Timestamptz(6)
+  size        Int
+  joinMode    String
+  status      String
+  roomId      String?
+  rewardKey   String
+  rpgStatus   String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status, startsAt])
+  @@map("crew_session")
+}
+
+model CrewSessionMember {
+  id        String   @id
+  guildId   String
+  sessionId String
+  userId    String
+  status    String
+  ready     Boolean  @default(false)
+  team      String   @default("")
+  attended  Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId, status])
+  @@map("crew_session_member")
+}
+
+model Prediction {
+  id                     String   @id
+  guildId                String
+  title                  String
+  mode                   String
+  rules                  String
+  evidence               String
+  requiredRoleId         String   @default("")
+  minAccountDays         Int      @default(0)
+  attendanceOccurrenceId String   @default("")
+  lockAt                 DateTime @db.Timestamptz(6)
+  status                 String
+  points                 Int
+  prizeMarks             Int
+  houseFeeBps            Int      @default(0)
+  winningOutcomeId       String   @default("")
+  resolutionEvidence     String   @default("")
+  resolutionRule         String   @default("")
+  createdAt              DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status, lockAt])
+  @@map("prediction")
+}
+
+model PredictionOutcome {
+  id           String   @id
+  guildId      String
+  predictionId String
+  label        String
+  position     Int
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([predictionId, position])
+  @@map("prediction_outcome")
+}
+
+model PredictionEntry {
+  id            String   @id
+  guildId       String
+  predictionId  String
+  userId        String
+  outcomeId     String
+  stakeMarks    Int
+  pointsAwarded Int      @default(0)
+  payoutMarks   Int      @default(0)
+  status        String
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([predictionId, userId])
+  @@map("prediction_entry")
+}
+
+model PredictionScore {
+  id        String   @id
+  guildId   String
+  userId    String
+  points    Int
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId])
+  @@map("prediction_score")
+}
+
+model Contest {
+  id              String    @id
+  guildId         String
+  title           String
+  mode            String
+  rules           String
+  category        String
+  allowedTypes    String
+  mediaLimit      Int
+  closesAt        DateTime  @db.Timestamptz(6)
+  editsBeforeClose Boolean
+  selfVote        Boolean
+  blind           Boolean
+  privateEntries  Boolean
+  tiePolicy       String
+  requiredRoleId  String    @default("")
+  status          String
+  publishedAt     DateTime? @db.Timestamptz(6)
+  archivedAt      DateTime? @db.Timestamptz(6)
+  stockId         String    @default("")
+  prizeQuantity   Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("contest")
+}
+
+model ContestCriterion {
+  id        String @id
+  guildId   String
+  contestId String
+  name      String
+  weight    Int
+
+  @@unique([contestId, name])
+  @@map("contest_criterion")
+}
+
+model ContestEntry {
+  id        String   @id
+  guildId   String
+  contestId String
+  userId    String
+  title     String
+  mediaType String
+  body      String
+  status    String
+  revision  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([contestId, userId])
+  @@map("contest_entry")
+}
+
+model ContestBallot {
+  id          String   @id
+  guildId     String
+  contestId   String
+  entryId     String
+  voterUserId String
+  scores      Json
+  reason      String   @default("")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([contestId, voterUserId, entryId])
+  @@index([contestId, voterUserId])
+  @@map("contest_ballot")
+}
+
+model ContestResult {
+  id        String   @id
+  guildId   String
+  contestId String
+  entryId   String
+  score     Int
+  tied      Boolean
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([contestId, entryId])
+  @@map("contest_result")
+}
+
+model PrizeStock {
+  id         String   @id
+  guildId    String
+  name       String
+  kind       String
+  onHand     Int
+  reserved   Int      @default(0)
+  marksEach  Int      @default(0)
+  shopStatus String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, kind])
+  @@map("prize_stock")
+}
+
+model PrizeFulfilment {
+  id        String   @id
+  guildId   String
+  stockId   String
+  source    String
+  sourceId  String
+  userId    String
+  quantity  Int
+  status    String
+  detail    String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([source, sourceId, userId])
+  @@map("prize_fulfilment")
+}
+
+model Giveaway {
+  id                     String    @id
+  guildId                String
+  title                  String
+  rules                  String
+  bonusRules             String
+  requiredRoleId         String    @default("")
+  minAccountDays         Int       @default(0)
+  attendanceOccurrenceId String    @default("")
+  closesAt               DateTime  @db.Timestamptz(6)
+  claimMinutes           Int
+  maxBonus               Int
+  winnerCount            Int
+  status                 String
+  stockId                String    @default("")
+  prizeQuantity          Int       @default(1)
+  snapshot               Json?
+  closedAt               DateTime? @db.Timestamptz(6)
+  sponsor                String    @default("")
+  createdAt              DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("giveaway")
+}
+
+model GiveawayEntry {
+  id          String   @id
+  guildId     String
+  giveawayId  String
+  userId      String
+  kind        String
+  activityKey String   @default("")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([giveawayId, userId, kind, activityKey])
+  @@index([giveawayId, userId])
+  @@map("giveaway_entry")
+}
+
+model GiveawayDraw {
+  id           String   @id
+  guildId      String
+  giveawayId   String
+  sequence     Int
+  userId       String
+  status       String
+  claimBy      DateTime @db.Timestamptz(6)
+  fulfilment   String
+  detail       String   @default("")
+  reason       String   @default("")
+  actorUserId  String
+  delivery     String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([giveawayId, sequence])
+  @@index([giveawayId, userId])
+  @@map("giveaway_draw")
+}
+
+model ContractDefinition {
+  id           String   @id
+  guildId      String
+  slug         String
+  kind         String
+  title        String
+  prompt       String
+  band         String
+  target       Int
+  rewardMarks  Int
+  characterXp  Int      @default(0)
+  version      Int
+  answerHash   String   @default("")
+  dailyPool    Boolean  @default(false)
+  weeklyPool   Boolean  @default(false)
+  monthlyPool  Boolean  @default(false)
+  availability String
+  status       String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@index([guildId, status])
+  @@map("contract_definition")
+}
+
+model ContractRevision {
+  id           String   @id
+  guildId      String
+  definitionId String
+  version      Int
+  kind         String
+  title        String
+  prompt       String
+  band         String
+  target       Int
+  rewardMarks  Int
+  characterXp  Int      @default(0)
+  answerHash   String   @default("")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([definitionId, version])
+  @@index([guildId, definitionId])
+  @@map("contract_revision")
+}
+
+model ContractBoardSlot {
+  id           String   @id
+  guildId      String
+  board        String
+  cycleId      String
+  slot         Int
+  definitionId String
+  revisionId   String
+  version      Int
+  kind         String
+  title        String
+  prompt       String
+  band         String
+  target       Int
+  rewardMarks  Int
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([guildId, board, cycleId, slot])
+  @@index([guildId, board, cycleId])
+  @@map("contract_board_slot")
+}
+
+model ContractAssignment {
+  id           String   @id
+  guildId      String
+  userId       String
+  board        String
+  cycleId      String
+  slot         Int
+  definitionId String
+  revisionId   String
+  version      Int
+  kind         String
+  title        String
+  prompt       String
+  target       Int
+  progress     Int      @default(0)
+  rewardMarks  Int
+  characterXp  Int      @default(0)
+  payoutMarks  Int      @default(0)
+  payoutStatus String   @default("pending")
+  status       String
+  rewardKey    String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([rewardKey])
+  @@index([guildId, userId, cycleId])
+  @@index([guildId, userId, status])
+  @@map("contract_assignment")
+}
+
+model ContractReroll {
+  id           String   @id
+  guildId      String
+  userId       String
+  cycleId      String
+  assignmentId String
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([guildId, userId, cycleId])
+  @@map("contract_reroll")
+}
+
+model ContractPreference {
+  id                String   @id
+  guildId           String
+  userId            String
+  refreshDaily      Boolean  @default(true)
+  refreshWeekly     Boolean  @default(false)
+  refreshMonthly    Boolean  @default(false)
+  delivery          String   @default("dm")
+  channelId         String   @default("")
+  completionPings   Boolean  @default(true)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId])
+  @@map("contract_preference")
+}
+
+model ContractNotice {
+  id           String   @id
+  guildId      String
+  userId       String
+  kind         String
+  board        String
+  cycleId      String
+  assignmentId String   @default("")
+  delivery     String
+  status       String
+  reason       String   @default("")
+  attempts     Int      @default(0)
+  publicBody   String   @default("")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId, kind, cycleId, assignmentId])
+  @@index([guildId, status])
+  @@map("contract_notice")
+}
+
+model ContractSubmission {
+  id           String   @id
+  guildId      String
+  assignmentId String
+  userId       String
+  body         String
+  status       String
+  reason       String   @default("")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([assignmentId, status])
+  @@index([guildId, status])
+  @@map("contract_submission")
+}
+
+model ContractSettings {
+  guildId             String   @id
+  timezone            String   @default("Australia/Perth")
+  completionChannelId String   @default("")
+  dailyCount          Int      @default(3)
+  dailyCap            Int      @default(80)
+  weeklyCap           Int      @default(250)
+  monthlyCap          Int      @default(500)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("contract_settings")
+}
+
+model ContractCursor {
+  id            String    @id
+  guildId       String
+  userId        String
+  lastMessageAt DateTime? @db.Timestamptz(6)
+  lastHash      String    @default("")
+  lastHashAt    DateTime? @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId])
+  @@map("contract_cursor")
+}
+
+model CharacterCurve {
+  guildId          String   @id
+  version          Int
+  xpFactor         Int      @default(100)
+  sessionXp        Int      @default(1200)
+  sessionsPerWeek  Int      @default(4)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("character_curve")
+}
+
+model ClassDefinition {
+  id             String   @id
+  guildId        String
+  slug           String
+  name           String
+  summary        String
+  baseStrength   Int
+  baseAgility    Int
+  baseEndurance  Int
+  baseFocus      Int
+  version        Int
+  status         String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@index([guildId, status])
+  @@map("class_definition")
+}
+
+model ClassAbility {
+  id            String   @id
+  guildId       String
+  classId       String
+  slug          String
+  name          String
+  kind          String
+  unlockLevel   Int
+  cooldownTurns Int
+  targetRule    String
+  formula       String
+  version       Int
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([classId, slug])
+  @@index([guildId, classId])
+  @@map("class_ability")
+}
+
+model PlayerCharacter {
+  id                     String    @id
+  guildId                String
+  userId                 String
+  classId                String
+  classSlug              String
+  level                  Int       @default(1)
+  xp                     Int       @default(0)
+  unspentPoints          Int       @default(0)
+  strength               Int       @default(0)
+  agility                Int       @default(0)
+  endurance              Int       @default(0)
+  focus                  Int       @default(0)
+  pendingXp              Int       @default(0)
+  respecAvailableAt      DateTime? @db.Timestamptz(6)
+  classChangeAvailableAt DateTime? @db.Timestamptz(6)
+  introResetUsed         Boolean   @default(false)
+  rankedDebutAt          DateTime? @db.Timestamptz(6)
+  gameplayLock           String    @default("")
+  createdAt              DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId])
+  @@index([guildId, classSlug])
+  @@map("player_character")
+}
+
+model CharacterLoadoutSlot {
+  id         String   @id
+  guildId    String
+  userId     String
+  slot       Int
+  kind       String   @default("class")
+  abilityId  String   @default("")
+  itemId     String   @default("")
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([guildId, userId, slot])
+  @@map("character_loadout_slot")
+}
+
+model CharacterReward {
+  id        String   @id
+  guildId   String
+  userId    String
+  rewardKey String
+  kind      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([rewardKey])
+  @@index([guildId, userId])
+  @@map("character_reward")
+}
+
+model CharacterHeldItem {
+  id         String   @id
+  guildId    String
+  userId     String
+  name        String
+  classSlug   String   @default("")
+  abilitySlug String   @default("")
+  equipped    Boolean  @default(true)
+  destroyed  Boolean  @default(false)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, userId])
+  @@map("character_held_item")
+}
+
+model CharacterXpEvent {
+  id             String   @id
+  guildId        String
+  userId         String
+  amount         Int
+  source         String
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId])
+  @@map("character_xp_event")
+}
+
+model GearTemplate {
+  id             String   @id
+  guildId        String
+  slug           String
+  name           String
+  slot           String
+  summary        String
+  classSlug      String   @default("")
+  level          Int      @default(1)
+  binding        String
+  diceCount      Int      @default(0)
+  diceSides      Int      @default(0)
+  critMultiplier Int      @default(2)
+  abilitySlug    String   @default("")
+  affixMax       Int      @default(1)
+  affixRules     Json
+  version        Int
+  status         String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@index([guildId, status])
+  @@map("gear_template")
+}
+
+model GearInstance {
+  id             String   @id
+  guildId        String
+  userId         String
+  templateId     String
+  name           String
+  slot           String
+  classSlug      String   @default("")
+  level          Int
+  binding        String
+  diceCount      Int      @default(0)
+  diceSides      Int      @default(0)
+  critMultiplier Int      @default(2)
+  abilitySlug    String   @default("")
+  affixes        Json
+  provenance     String
+  equipped       Boolean  @default(false)
+  lock           String   @default("")
+  destroyed      Boolean  @default(false)
+  upgradeTier    Int      @default(0)
+  rerollCount    Int      @default(0)
+  upgradeHistory Json     @default("[]")
+  templateVersion Int
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId])
+  @@map("gear_instance")
+}
+
+model TestOpponent {
+  id        String   @id
+  guildId   String
+  slug      String
+  name      String
+  tactic    String
+  accuracy  Int
+  defence   Int
+  health    Int
+  diceCount Int
+  diceSides Int
+  version   Int
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@map("test_opponent")
+}
+
+model Battle {
+  id             String    @id
+  guildId        String
+  userId         String
+  kind           String
+  status         String
+  opponentSlug   String
+  deadline       DateTime? @db.Timestamptz(6)
+  state          Json
+  winner         String    @default("")
+  idempotencyKey String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId, status])
+  @@map("battle")
+}
+
+model BattleRoll {
+  id        String   @id
+  battleId  String
+  guildId   String
+  sequence  Int
+  purpose   String
+  faces     Int
+  result    Int
+  revealed  Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([battleId, sequence])
+  @@index([battleId, revealed])
+  @@map("battle_roll")
+}
+
+model BattleAction {
+  id             String   @id
+  battleId       String
+  guildId        String
+  round          Int
+  actor          String
+  move           String
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([battleId])
+  @@map("battle_action")
+}
+
+model WorldRegion {
+  id        String   @id
+  guildId   String
+  slug      String
+  name      String
+  summary   String
+  level     Int
+  version   Int
+  status    String
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@map("world_region")
+}
+
+model WorldEnemy {
+  id           String   @id
+  guildId      String
+  slug         String
+  name         String
+  regionSlug   String
+  level        Int
+  boss         Boolean
+  ability      String
+  accuracy     Int
+  defence      Int
+  health       Int
+  diceCount    Int
+  diceSides    Int
+  rewardSource String
+  summary      String
+  version      Int
+  status       String
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@index([guildId, regionSlug])
+  @@map("world_enemy")
+}
+
+model LootTable {
+  id         String   @id
+  guildId    String
+  slug       String
+  name       String
+  regionSlug String
+  difficulty String
+  entries    Json
+  version    Int
+  status     String
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@map("loot_table")
+}
+
+model Expedition {
+  id              String    @id
+  guildId         String
+  userId          String
+  regionSlug      String
+  difficulty      String
+  status          String
+  deadline        DateTime  @db.Timestamptz(6)
+  cooldownUntil   DateTime  @db.Timestamptz(6)
+  dayKey          String    @default("")
+  notify          Boolean   @default(false)
+  notice          String    @default("")
+  reservedItemIds Json
+  rules           Json
+  report          Json
+  grantedXp       Int       @default(0)
+  grantedMarks    Int       @default(0)
+  marksResult     String    @default("")
+  rewardsPosted   Boolean   @default(false)
+  idempotencyKey  String
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt     DateTime? @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId, status])
+  @@index([status, deadline])
+  @@map("expedition")
+}
+
+model MissionRun {
+  id             String    @id
+  guildId        String
+  userId         String
+  slug           String
+  status         String
+  nodeId         String
+  waiting        String
+  unbanked       Json
+  log            Json
+  reservedItemIds Json
+  notice         String    @default("")
+  grantedXp      Int       @default(0)
+  grantedMarks   Int       @default(0)
+  marksResult    String    @default("")
+  rewardsPosted  Boolean   @default(false)
+  dayKey         String    @default("")
+  idempotencyKey String
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt    DateTime? @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId, status])
+  @@map("mission_run")
+}
+
+model CrewMission {
+  id            String    @id
+  guildId       String
+  crewId        String
+  regionSlug    String
+  difficulty    String
+  mode          String
+  status        String
+  turnUserId    String    @default("")
+  turnDeadline  DateTime? @db.Timestamptz(6)
+  abandonAt     DateTime  @db.Timestamptz(6)
+  enemy         Json
+  enemyHealth   Int       @default(0)
+  roomId        String    @default("")
+  rules         String
+  notice        String    @default("")
+  granted       Boolean   @default(false)
+  idempotencyKey String
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt   DateTime? @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, status, abandonAt])
+  @@map("crew_mission")
+}
+
+model CrewMissionMember {
+  id              String   @id
+  guildId         String
+  missionId       String
+  userId          String
+  ready           Boolean  @default(false)
+  misses          Int      @default(0)
+  health          Int
+  downed          Boolean  @default(false)
+  revivesUsed     Int      @default(0)
+  eligible        Boolean  @default(true)
+  acted           Boolean  @default(false)
+  lootSlug        String   @default("")
+  grantedXp       Int      @default(0)
+  reservedItemIds Json
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([missionId, userId])
+  @@index([guildId, userId])
+  @@map("crew_mission_member")
+}
+
+model Recovery {
+  id         String   @id
+  guildId    String
+  userId     String
+  until      DateTime @db.Timestamptz(6)
+  medkitUsed Boolean  @default(false)
+  source     String
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId])
+  @@map("recovery")
+}
+
+model PvpRating {
+  id             String   @id
+  guildId        String
+  userId         String
+  seasonId       String
+  rating         Int      @default(1000)
+  wins           Int      @default(0)
+  losses         Int      @default(0)
+  draws          Int      @default(0)
+  lifetimeWins   Int      @default(0)
+  lifetimeLosses Int      @default(0)
+  lifetimeDraws  Int      @default(0)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, userId, seasonId])
+  @@index([guildId, seasonId, rating])
+  @@map("pvp_rating")
+}
+
+model PvpQueueEntry {
+  id       String   @id
+  guildId  String
+  userId   String
+  mode     String
+  stake    Int
+  rating   Int
+  status   String
+  joinedAt DateTime @db.Timestamptz(6)
+
+  @@index([guildId, status, mode, stake])
+  @@map("pvp_queue_entry")
+}
+
+model PvpMatch {
+  id                String    @id
+  guildId           String
+  seasonId          String
+  mode              String
+  requestedMode     String
+  demoted           Boolean   @default(false)
+  stake             Int       @default(0)
+  style             String
+  status            String
+  leftUserId        String
+  rightUserId       String
+  pairKey           String
+  acceptedLeft      Boolean   @default(false)
+  acceptedRight     Boolean   @default(false)
+  battleId          String    @default("")
+  winnerUserId      String    @default("")
+  outcome           String    @default("")
+  rankedEligible    Boolean   @default(false)
+  dayKey            String    @default("")
+  rules             String
+  leftMisses        Int       @default(0)
+  rightMisses       Int       @default(0)
+  turnUserId        String    @default("")
+  turnDeadline      DateTime? @db.Timestamptz(6)
+  leftDisconnectedAt  DateTime? @db.Timestamptz(6)
+  rightDisconnectedAt DateTime? @db.Timestamptz(6)
+  ratingPosted      Boolean   @default(false)
+  rewardsPosted     Boolean   @default(false)
+  wagerPosted       Boolean   @default(false)
+  idempotencyKey    String
+  createdAt         DateTime  @default(now()) @db.Timestamptz(6)
+  settledAt         DateTime? @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, pairKey, dayKey])
+  @@index([guildId, status])
+  @@map("pvp_match")
+}
+
+model PvpReview {
+  id        String   @id
+  guildId   String
+  matchId   String
+  pairKey   String
+  reason    String
+  status    String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([matchId])
+  @@index([guildId, status])
+  @@map("pvp_review")
+}
+
+model WorkshopSettings {
+  guildId         String @id
+  upgradeCap      Int    @default(3)
+  listingLimit    Int    @default(3)
+  listingHours    Int    @default(72)
+  listingFeeMarks Int    @default(0)
+  rerollBaseMarks Int    @default(10)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("workshop_settings")
+}
+
+model MaterialStock {
+  id       String @id
+  guildId  String
+  userId   String
+  slug     String
+  quantity Int    @default(0)
+
+  @@unique([guildId, userId, slug])
+  @@map("material_stock")
+}
+
+model CraftRecipe {
+  id             String   @id
+  guildId        String
+  slug           String
+  name           String
+  outputSlug     String
+  outputAffixes  Json
+  inputSlug      String
+  inputAmount    Int
+  status         String
+  version        Int      @default(1)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@map("craft_recipe")
+}
+
+model TradeOffer {
+  id                   String    @id
+  guildId              String
+  fromUserId           String
+  toUserId             String
+  offerItemId          String    @default("")
+  requestItemId        String    @default("")
+  offerMarks           Int       @default(0)
+  requestMarks         Int       @default(0)
+  status               String
+  version              Int       @default(1)
+  fromConfirmedVersion Int       @default(0)
+  toConfirmedVersion   Int       @default(0)
+  expiresAt            DateTime  @db.Timestamptz(6)
+  settledAt            DateTime? @db.Timestamptz(6)
+  idempotencyKey       String
+
+  @@unique([idempotencyKey])
+  @@index([guildId, status, expiresAt])
+  @@map("trade_offer")
+}
+
+model MarketListing {
+  id             String    @id
+  guildId        String
+  sellerId       String
+  buyerId        String    @default("")
+  itemId         String
+  priceMarks     Int
+  feeMarks       Int       @default(0)
+  status         String
+  listingKey     String
+  expiresAt      DateTime  @db.Timestamptz(6)
+  settledAt      DateTime? @db.Timestamptz(6)
+  idempotencyKey String
+
+  @@unique([listingKey])
+  @@unique([idempotencyKey])
+  @@index([guildId, status, expiresAt])
+  @@map("market_listing")
+}
+
+model ShopOffer {
+  id              String    @id
+  guildId         String
+  shop            String
+  slug            String
+  name            String
+  description     String
+  currency        String
+  price           Int
+  stock           Int
+  limitPerMember  Int       @default(0)
+  minLevel        Int       @default(1)
+  requiredRoleId  String    @default("")
+  classSlug       String    @default("")
+  deliverable     String
+  deliverableSlug String    @default("")
+  amount          Int       @default(1)
+  duplicatePolicy String    @default("keep")
+  startsAt        DateTime? @db.Timestamptz(6)
+  endsAt          DateTime? @db.Timestamptz(6)
+  status          String
+  version         Int       @default(1)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@index([guildId, shop, status])
+  @@map("shop_offer")
+}
+
+model ShopPurchase {
+  id             String   @id
+  guildId        String
+  userId         String
+  offerId        String
+  offerSlug      String
+  offerVersion   Int
+  quantity       Int      @default(1)
+  currency       String
+  amount         Int
+  status         String
+  deliverable    String
+  receipt        String
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId, offerId])
+  @@map("shop_purchase")
+}
+
+model SteamKey {
+  id           String    @id
+  guildId      String
+  offerSlug    String
+  ciphertext   String
+  nonce        String
+  status       String
+  purchaseId   String    @default("")
+  userId       String    @default("")
+  assignedAt   DateTime? @db.Timestamptz(6)
+  revealedAt   DateTime? @db.Timestamptz(6)
+
+  @@index([guildId, offerSlug, status])
+  @@map("steam_key")
+}
+
+model DeliveryInbox {
+  id         String    @id
+  guildId    String
+  userId     String
+  purchaseId String
+  summary    String
+  dmStatus   String
+  status     String
+  revealedAt DateTime? @db.Timestamptz(6)
+
+  @@unique([purchaseId])
+  @@index([guildId, userId])
+  @@map("delivery_inbox")
+}
+
+model CrateTable {
+  id             String   @id
+  guildId        String
+  slug           String
+  name           String
+  version        Int      @default(1)
+  currency       String
+  price          Int
+  pityThreshold  Int
+  guaranteeSlug  String
+  policy         String
+  status         String
+  replacesSlug   String   @default("")
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([guildId, slug])
+  @@map("crate_table")
+}
+
+model CrateEntry {
+  id              String @id
+  guildId         String
+  tableId         String
+  slug            String
+  kind            String
+  weight          Int
+  amount          Int    @default(1)
+  duplicatePolicy String @default("keep")
+  guarantee       Boolean @default(false)
+
+  @@index([tableId])
+  @@map("crate_entry")
+}
+
+model CratePity {
+  id          String @id
+  guildId     String
+  userId      String
+  tableSlug   String
+  count       Int    @default(0)
+  versionSeen Int    @default(1)
+
+  @@unique([guildId, userId, tableSlug])
+  @@map("crate_pity")
+}
+
+model CrateGrant {
+  id             String   @id
+  guildId        String
+  userId         String
+  tableSlug      String
+  tableVersion   Int
+  source         String
+  outcome        Json
+  pityBefore     Int
+  pityAfter      Int
+  status         String
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId, tableSlug])
+  @@map("crate_grant")
+}
+
+model CosmeticItem {
+  id             String   @id
+  guildId        String
+  userId         String
+  slug           String
+  name           String
+  binding        String
+  destroyed      Boolean  @default(false)
+  provenance     String
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([guildId, userId, slug])
+  @@map("cosmetic_item")
+}
+
+model LotterySettings {
+  guildId     String   @id
+  ticketMarks Int
+  cap         Int
+  stallDays   Int
+  hour        Int?
+  minute      Int?
+  version     Int      @default(1)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("lottery_settings")
+}
+
+model LotteryBudget {
+  guildId         String   @id
+  authorizedMinor BigInt
+  reservedMinor   BigInt   @default(0)
+  spentMinor      BigInt   @default(0)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("lottery_budget")
+}
+
+model LotteryDraw {
+  id           String    @id
+  guildId      String
+  openKey      String    @unique
+  status       String
+  openedAt     DateTime  @db.Timestamptz(6)
+  closesAt     DateTime? @db.Timestamptz(6)
+  stallAt      DateTime  @db.Timestamptz(6)
+  potMinor     BigInt    @default(0)
+  bonusMinor   BigInt    @default(0)
+  ticketCount  Int       @default(0)
+  rolloverCount Int      @default(0)
+  snapshot     Json?
+  winnerTicketId String  @default("")
+  winnerUserId String    @default("")
+  winnerIndex  Int       @default(-1)
+  settledAt    DateTime? @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("lottery_draw")
+}
+
+model LotteryTicket {
+  id          String   @id
+  guildId     String
+  drawId      String
+  purchaseId  String
+  userId      String
+  priceMinor  BigInt
+  bonusMinor  BigInt
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([drawId, userId])
+  @@map("lottery_ticket")
+}
+
+model LotteryPurchase {
+  id             String   @id
+  guildId        String
+  drawId         String
+  userId         String
+  quantity       Int
+  priceMinor     BigInt
+  bonusMinor     BigInt
+  idempotencyKey String
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([drawId])
+  @@map("lottery_purchase")
+}
+
+model LotteryQuote {
+  id              String   @id
+  guildId         String
+  userId          String
+  drawId          String
+  settingsVersion Int
+  quantity        Int
+  priceMinor      BigInt
+  bonusMinor      BigInt
+  deadline        DateTime? @db.Timestamptz(6)
+  stallAt         DateTime @db.Timestamptz(6)
+  oddsBasisPoints Int
+  budgetRemainingMinor BigInt
+  status          String
+  idempotencyKey  String
+  expiresAt       DateTime @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([idempotencyKey])
+  @@index([drawId, userId])
+  @@map("lottery_quote")
+}
+
+model DeadDropSettings {
+  guildId        String   @id
+  pickMarks      Int
+  seedMarks      Int
+  smallMarks     Int
+  smallCount     Int
+  shareBps       Int
+  openMinutes    Int
+  hour           Int?
+  minute         Int?
+  specialKind    String   @default("")
+  specialPayload String   @default("")
+  version        Int      @default(1)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("dead_drop_settings")
+}
+
+model DeadDropBudget {
+  guildId              String   @id
+  seedAuthorizedMinor  BigInt
+  seedReservedMinor    BigInt   @default(0)
+  seedSpentMinor       BigInt   @default(0)
+  smallAuthorizedMinor BigInt
+  smallReservedMinor   BigInt   @default(0)
+  smallSpentMinor      BigInt   @default(0)
+  treasuryMinor        BigInt   @default(0)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("dead_drop_budget")
+}
+
+model DeadDropBoard {
+  id                   String    @id
+  guildId              String
+  openKey              String    @unique
+  chainId              String
+  status               String
+  opensAt              DateTime  @db.Timestamptz(6)
+  closesAt             DateTime  @db.Timestamptz(6)
+  seedMinor            BigInt
+  carriedSeedMinor     BigInt    @default(0)
+  carriedPoolMinor     BigInt    @default(0)
+  carriedTreasuryMinor BigInt    @default(0)
+  shareMinor           BigInt    @default(0)
+  treasuryMinor        BigInt    @default(0)
+  jackpotMinor         BigInt
+  commitment           String
+  specialKind          String    @default("")
+  previousBoardId      String    @default("")
+  winnerUserId         String    @default("")
+  winnerCoordinate     String    @default("")
+  settledAt            DateTime? @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@index([chainId])
+  @@map("dead_drop_board")
+}
+
+model DeadDropCell {
+  id         String    @id
+  guildId    String
+  boardId    String
+  coordinate String
+  kind       String
+  payload    String    @default("")
+  status     String
+  userId     String    @default("")
+  revealedAt DateTime? @db.Timestamptz(6)
+
+  @@unique([boardId, coordinate])
+  @@index([boardId, status])
+  @@map("dead_drop_cell")
+}
+
+model DeadDropPick {
+  id             String   @id
+  guildId        String
+  boardId        String
+  userId         String
+  coordinate     String
+  quoteId        String   @unique
+  priceMinor     BigInt
+  shareMinor     BigInt
+  treasuryMinor  BigInt
+  rewardKind     String
+  rewardDetail   String   @default("")
+  rewardRef      String   @default("")
+  status         String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([boardId, userId])
+  @@index([guildId, status])
+  @@map("dead_drop_pick")
+}
+
+model DeadDropQuote {
+  id              String   @id
+  guildId         String
+  userId          String
+  boardId         String
+  coordinate      String
+  settingsVersion Int
+  priceMinor      BigInt
+  shareMinor      BigInt
+  jackpotMinor    BigInt
+  picksUsed       Int
+  opensAt         DateTime @db.Timestamptz(6)
+  closesAt        DateTime @db.Timestamptz(6)
+  status          String
+  idempotencyKey  String   @unique
+  expiresAt       DateTime @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([boardId, userId])
+  @@map("dead_drop_quote")
+}
+
+model DeadDropReminder {
+  guildId   String
+  userId    String
+  enabled   Boolean
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@id([guildId, userId])
+  @@map("dead_drop_reminder")
+}
+
+model DeadDropNotice {
+  id        String   @id
+  guildId   String
+  boardId   String
+  userId    String
+  kind      String
+  status    String
+  summary   String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([boardId, userId, kind])
+  @@map("dead_drop_notice")
+}
+
+model DeadDropPost {
+  boardId        String    @id
+  guildId        String
+  revision       Int
+  status         String
+  summary        String
+  coalesceUntil  DateTime? @db.Timestamptz(6)
+
+  @@map("dead_drop_post")
+}
+
+model BlackjackSettings {
+  guildId                   String   @id
+  minBetMarks               Int
+  maxBetMarks               Int
+  tableCap                  Int
+  joinSeconds               Int
+  turnSeconds               Int
+  decks                     Int
+  hitSoft17                 Boolean
+  naturalNum                Int
+  naturalDen                Int
+  regularNum                Int
+  regularDen                Int
+  maxSplits                 Int
+  splitAcesOneCard          Boolean
+  splitBlackjackPaysRegular Boolean
+  version                   Int
+  updatedAt                 DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("blackjack_settings")
+}
+
+model BlackjackTable {
+  id           String    @id
+  guildId      String
+  mode         String
+  status       String
+  rulesVersion Int
+  rules        Json
+  shoe         Json
+  cursor       Int
+  dealer       Json
+  joinUntil    DateTime  @db.Timestamptz(6)
+  turnHandId   String
+  turnDeadline DateTime? @db.Timestamptz(6)
+  settledAt    DateTime? @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([guildId, status])
+  @@map("blackjack_table")
+}
+
+model BlackjackSeat {
+  id            String @id
+  tableId       String
+  guildId       String
+  userId        String
+  seat          Int
+  stakeMinor    BigInt
+  exposureMinor BigInt
+  profitMinor   BigInt
+  status        String
+  outcome       String
+
+  @@unique([tableId, userId])
+  @@unique([tableId, seat])
+  @@index([guildId])
+  @@map("blackjack_seat")
+}
+
+model BlackjackHand {
+  id          String @id
+  tableId     String
+  seatId      String
+  guildId     String
+  position    Int
+  cards       Json
+  stakeMinor  BigInt
+  status      String
+  doubled     Boolean
+  fromSplit   Boolean
+  splitAce    Boolean
+  stoodReason String
+  outcome     String
+  profitMinor BigInt
+
+  @@unique([seatId, position])
+  @@index([tableId])
+  @@map("blackjack_hand")
+}
+
+model BlackjackAction {
+  id             String   @id
+  tableId        String
+  handId         String
+  guildId        String
+  userId         String
+  action         String
+  card           String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tableId])
+  @@map("blackjack_action")
+}
+
+model BlackjackQuote {
+  id                  String   @id
+  guildId             String
+  userId              String
+  tableId             String
+  mode                String
+  stakeMinor          BigInt
+  exposureMinor       BigInt
+  naturalProfitMinor  BigInt
+  regularProfitMinor  BigInt
+  rulesVersion        Int
+  rules               Json
+  status              String
+  idempotencyKey      String   @unique
+  expiresAt           DateTime @db.Timestamptz(6)
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([guildId, userId])
+  @@map("blackjack_quote")
+}
+
+model BlackjackReceipt {
+  id             String   @id
+  guildId        String
+  tableId        String
+  userId         String
+  kind           String
+  stakeMinor     BigInt
+  exposureMinor  BigInt
+  profitMinor    BigInt
+  rulesVersion   Int
+  summary        String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tableId, userId])
+  @@map("blackjack_receipt")
+}
+
+model BlackjackNotice {
+  id        String   @id
+  guildId   String
+  tableId   String
+  userId    String
+  kind      String
+  status    String
+  summary   String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([tableId, userId, kind])
+  @@map("blackjack_notice")
+}

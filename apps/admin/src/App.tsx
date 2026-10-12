@@ -1,0 +1,210 @@
+import { Shell } from "@collective/ui";
+import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router";
+
+import { PublicationEditor } from "./publications-editor.js";
+import { ActivitiesPage } from "./activities-page.js";
+import { CharactersPage } from "./characters-page.js";
+import { CombatPage } from "./combat-page.js";
+import { WorldPage } from "./world-page.js";
+import { ShopPage } from "./shop-page.js";
+import { LotteryPage } from "./lottery-page.js";
+import { DeadDropPage } from "./dead-drop-page.js";
+import { BlackjackPage } from "./blackjack-page.js";
+import { CommunityPage, EconomyPage, MarketPage, ModerationPage, ProgressionPage, SeasonsPage, TicketsPage } from "./desk-page.js";
+import { ContractsPage } from "./contracts-page.js";
+import { GatheringsPage } from "./gatherings-page.js";
+import { OperationsPage } from "./operations-page.js";
+
+interface BotHealth {
+  database?: string;
+  discord?: string;
+  jobs?: string;
+  foundationRevision?: string | null;
+  status?: string;
+}
+
+interface AuthStatus {
+  authenticated?: boolean;
+  oauth?: string;
+  access?: string;
+  reason?: string;
+  csrfToken?: string;
+}
+
+const healthUrl = import.meta.env.VITE_BOT_HEALTH_URL || "http://localhost:8081/health";
+
+function AccessClosed() {
+  const [health, setHealth] = useState<BotHealth | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [auth, setAuth] = useState<AuthStatus | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [providerLine, setProviderLine] = useState("Provider ownership checks are setup-required.");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(healthUrl, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok && response.status !== 503) {
+          throw new Error(`Health request failed with status ${response.status}.`);
+        }
+        setHealth((await response.json()) as BotHealth);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        setHealth(null);
+        setHealthError("Bot health is unavailable. This is not a successful connection.");
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/auth/status", { signal: controller.signal })
+      .then(async (response) => {
+        setAuth((await response.json()) as AuthStatus);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+        setAuth(null);
+        setAuthError("Sign-in status is unavailable. This is not a successful login.");
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/community/providers", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          setProviderLine("Provider ownership checks are setup-required.");
+          return;
+        }
+        const body = (await response.json()) as { providers?: Array<{ provider: string; status: string }> };
+        const ready = body.providers?.filter((provider) => provider.status === "ready").length ?? 0;
+        const required = body.providers?.filter((provider) => provider.status === "setup_required").length ?? 0;
+        setProviderLine(`${ready} provider proofs ready, ${required} setup-required. Handles can still be saved.`);
+      })
+      .catch(() => {
+        setProviderLine("Provider ownership checks are setup-required.");
+      });
+    return () => controller.abort();
+  }, []);
+
+  const oauthLabel = auth?.oauth === "oauth_ready" ? "oauth_ready" : "setup_required";
+  const accessLabel = auth?.authenticated ? "allowed" : "denied";
+
+  return (
+    <Shell title={auth?.authenticated ? "Dashboard" : "Admin access is closed"}>
+      <section className="panel">
+        <p>
+          {oauthLabel === "oauth_ready"
+            ? "Discord OAuth is configured. This page does not treat a missing session as a successful login."
+            : "Discord OAuth is setup-required. Missing credentials do not start a session."}
+        </p>
+        <p>{providerLine}</p>
+        <p>Moderation rules, cases, and logs stay behind a staff session. Automatic ban is disabled.</p>
+        <p>Support tickets stay private. Staff notes are omitted from member transcripts. Purchase disputes stay unfinished.</p>
+        <p>Public dossiers show Marks and Ingots. There are 5,000 Ingots: 2,500 stay in the protected reserve and 2,500 are active. Prices follow the scarcity curve from a 10,000 Mark baseline, with no price ceiling. Balances are public. Estimated wealth is labelled estimated and price-sensitive. Private bios stay hidden.</p>
+        <p>Seasons last three calendar months. Rollover archives standings and keeps community XP, wallets, characters, gear, and lifetime PvP records. A new season starts ranked rating at 1,000. Polls are staff-created and suggestions are excluded. Temporary rooms close after inactivity, with no fixed lifetime.</p>
+        <p>Publication drafts are edited in the admin editor. Approval binds one revision, then chooses a destination. Review controls stay off the published message. Approved drafts can be scheduled, pinned, or kept as stickies, and auto replies and game-update sources are managed there too. <a href="/publications">Open the editor</a></p>
+        <p>Official events, RSVP, and crews are managed in the admin schedule. A missing Discord token does not create a native scheduled event. <a href="/gatherings">Open events and crews</a></p>
+        <p>Predictions, contests, and giveaways use escrow and stocked prizes. A missing shop integration does not invent a prize key. <a href="/activities">Open activities</a></p>
+        <p>Daily, weekly, and monthly contracts are authored here. Turning off completion pings does not stop the reward. <a href="/contracts">Open contracts</a></p>
+        <p>Characters cap at level 50. A respec costs 5,000 Marks and a class change costs 15,000. Community chat does not grant character points. <a href="/characters">Open characters</a></p>
+        <p>Gear instances keep their own rolls. Test duels use the shared D20 rules. Casual and ranked queues escrow equal Marks stakes. Direct trades clear both confirmations when an offer changes, and listed gear stays held until it sells, expires, or is cancelled. <a href="/combat">Open combat</a></p>
+        <p>The supply shop spends Marks. An Ingot purchase stays in escrow until private delivery is committed. Steam keys are not crate loot. <a href="/shop">Open the shop</a></p>
+        <p>The daily lottery pools ticket payments and a reserved 50 percent bonus. Fewer than three members rolls the draw forward. The draw time is not selected until staff save one. <a href="/lottery">Open the lottery</a></p>
+        <p>Dead Drop is a shared 6 by 6 board. Three paid picks reveal one cell each. The jackpot closes the board, and an unfound jackpot rolls to the next day without a new starting seed. The opening hour is not selected until staff save one. <a href="/dead-drop">Open Dead Drop</a></p>
+        <p>Blackjack plays solo or at a social table against one dealer. The house reserves split and double exposure before the bet. The default maximum bet is 10 Marks. <a href="/blackjack">Open blackjack</a></p>
+        <p>Backstreets, Black Docks, and Inner Sanctum open by level. Missions and crew runs keep their state in the database. Recovery is timed. <a href="/world">Open regions</a></p>
+        <p>Verification, roles, and provider status stay on the admin access plan. Members still verify in Discord. <a href="/community">Open verification</a></p>
+        <p>Moderation cases stay behind an admin session. Other staff use Discord. Automatic ban is disabled. <a href="/moderation">Open moderation</a></p>
+        <p>Support tickets keep staff notes out of member transcripts. <a href="/tickets">Open tickets</a></p>
+        <p>Dossiers and invite history are read from stored progression. <a href="/progression">Open progression</a></p>
+        <p>Marks budgets and the routine month are edited from economy settings. A preview does not grant Marks. <a href="/economy">Open economy</a></p>
+        <p>The Ingot curve and backing are on the market page. The protected reserve stays 2,500. <a href="/market">Open the market</a></p>
+        <p>Seasons, staff polls, and temporary rooms are managed together. Suggestions are excluded. <a href="/seasons">Open seasons</a></p>
+        <p>Health, dead jobs, maintenance, configuration versions, rollback, and simulations are on the operations page. A draft is not active. <a href="/operations">Open operations</a></p>
+        <p className="status-line">
+          Authentication status: {authError ?? oauthLabel}. Access: {auth?.reason ?? accessLabel}.
+        </p>
+        {auth?.oauth === "oauth_ready" && !auth.authenticated ? <p><a href="/auth/discord">Continue with Discord</a></p> : null}
+        {auth?.authenticated && auth.csrfToken ? (
+          <button
+            type="button"
+            onClick={() => {
+              void fetch("/auth/logout", {
+                method: "POST",
+                headers: { "x-csrf-token": auth.csrfToken ?? "" },
+              }).then(() => {
+                window.location.assign("/");
+              });
+            }}
+          >
+            Log out
+          </button>
+        ) : null}
+      </section>
+      <section className="panel">
+        <h2>Bot health</h2>
+        {healthError ? <p>{healthError}</p> : null}
+        {health ? (
+          <dl className="facts">
+            <div>
+              <dt>Process status</dt>
+              <dd>{health.status ?? "unknown"}</dd>
+            </div>
+            <div>
+              <dt>Database</dt>
+              <dd>{health.database ?? "unknown"}</dd>
+            </div>
+            <div>
+              <dt>Discord</dt>
+              <dd>{health.discord ?? "unknown"}</dd>
+            </div>
+            <div>
+              <dt>Jobs</dt>
+              <dd>{health.jobs ?? "unknown"}</dd>
+            </div>
+            <div>
+              <dt>Foundation revision</dt>
+              <dd>{health.foundationRevision ?? "none"}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </section>
+    </Shell>
+  );
+}
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/publications" element={<PublicationEditor />} />
+      <Route path="/gatherings" element={<GatheringsPage />} />
+      <Route path="/activities" element={<ActivitiesPage />} />
+      <Route path="/contracts" element={<ContractsPage />} />
+      <Route path="/characters" element={<CharactersPage />} />
+      <Route path="/combat" element={<CombatPage />} />
+      <Route path="/world" element={<WorldPage />} />
+      <Route path="/shop" element={<ShopPage />} />
+      <Route path="/lottery" element={<LotteryPage />} />
+      <Route path="/dead-drop" element={<DeadDropPage />} />
+      <Route path="/blackjack" element={<BlackjackPage />} />
+      <Route path="/community" element={<CommunityPage />} />
+      <Route path="/moderation" element={<ModerationPage />} />
+      <Route path="/tickets" element={<TicketsPage />} />
+      <Route path="/progression" element={<ProgressionPage />} />
+      <Route path="/economy" element={<EconomyPage />} />
+      <Route path="/market" element={<MarketPage />} />
+      <Route path="/seasons" element={<SeasonsPage />} />
+      <Route path="/operations" element={<OperationsPage />} />
+      <Route path="*" element={<AccessClosed />} />
+    </Routes>
+  );
+}

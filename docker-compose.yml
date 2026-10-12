@@ -1,0 +1,128 @@
+# Local development only. This file does not target a production guild or host.
+services:
+  postgres:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: collective
+      POSTGRES_PASSWORD: collective
+      POSTGRES_DB: collective
+    ports:
+      - "5433:5432"
+    volumes:
+      - collective_postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U collective -d collective"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://collective:collective@postgres:5432/collective
+      DEFAULT_TIMEZONE: Australia/Perth
+      BOT_HEALTH_HOST: 0.0.0.0
+      BOT_HEALTH_PORT: "8081"
+      WORKER_HEALTH_PORT: "8082"
+      ADMIN_PORT: "5173"
+      ADMIN_ORIGIN: http://localhost:5173
+      DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:-}
+      DISCORD_TEST_GUILD_ID: ${DISCORD_TEST_GUILD_ID:-}
+      DISCORD_PRODUCTION_GUILD_ID: ${DISCORD_PRODUCTION_GUILD_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "start:bot"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8081/health').then(async (response) => { const body = await response.json(); if (!response.ok || body.database !== 'ok') process.exit(1); }).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: info
+      DATABASE_URL: postgresql://collective:collective@postgres:5432/collective
+      DEFAULT_TIMEZONE: Australia/Perth
+      BOT_HEALTH_HOST: 0.0.0.0
+      BOT_HEALTH_PORT: "8081"
+      WORKER_HEALTH_PORT: "8082"
+      ADMIN_PORT: "5173"
+      ADMIN_ORIGIN: http://localhost:5173
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "start:worker"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8082/health').then(async (response) => { const body = await response.json(); if (!response.ok || body.database !== 'ok' || body.jobs !== 'ok') process.exit(1); }).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BOT_HEALTH_URL: http://localhost:8081/health
+    environment:
+      ADMIN_PORT: "5173"
+      ADMIN_HOST: 0.0.0.0
+      DATABASE_URL: postgresql://collective:collective@postgres:5432/collective
+      ADMIN_ORIGIN: http://localhost:5173
+      DISCORD_TOKEN: ${DISCORD_TOKEN:-}
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:-}
+      DISCORD_TEST_GUILD_ID: ${DISCORD_TEST_GUILD_ID:-}
+      DISCORD_PRODUCTION_GUILD_ID: ${DISCORD_PRODUCTION_GUILD_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+    ports:
+      - "5173:5173"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      bot:
+        condition: service_healthy
+    command: ["npm", "run", "start:admin"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5173/health').then(async (response) => { const body = await response.json(); if (!response.ok || body.access !== 'denied' || (body.dashboardAuth !== 'setup_required' && body.dashboardAuth !== 'oauth_ready')) process.exit(1); }).catch(() => process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  collective_postgres:

@@ -1,0 +1,35 @@
+:root {
+  color-scheme: dark;
+  --bg: #12110f;
+  --bg-raised: #1c1a17;
+  --line: #3a342c;
+  --text: #f3efe6;
+  --muted: #b7ad9f;
+  --metal: #c4b59a;
+  --danger: #d7b1a3;
+  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(196, 181, 154, 0.08), transparent 28rem),
+    var(--bg);
+  color: var(--text);
+}
+
+a {
+  color: var(--metal);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
