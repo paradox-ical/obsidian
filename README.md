@@ -2,6 +2,8 @@
 
 Standalone Discord bot and admin-only dashboard. The admin pages call the persisted module services. Members and other staff use Discord. See `docs/PROGRESS.md` and `docs/OPERATIONS.md`.
 
+To run this on another PC, follow [SETUP.md](SETUP.md). The portable zip, including the Cursor chat, is on the [releases page](https://github.com/paradox-ical/obsidian/releases).
+
 ## Local runtime
 
 Node.js 24.21.0 is the pinned Active LTS. Docker Compose builds that version even when the workstation Node is older. PostgreSQL 18.6 runs as the `postgres` service.

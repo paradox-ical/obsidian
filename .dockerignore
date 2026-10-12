@@ -3,6 +3,8 @@ node_modules
 **/dist-server
 **/generated
 .git
+cursor-chat
+backups
 .env
 .env.*
 coverage

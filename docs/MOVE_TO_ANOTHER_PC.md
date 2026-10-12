@@ -1,5 +1,7 @@
 # Move this project to another PC
 
+The short version is [SETUP.md](../SETUP.md). This page is the extra detail.
+
 This folder is the whole local project. The zip made for copying also contains `cursor-chat/`, which is the Cursor conversation that built it. That chat folder is not part of git. Copy the zip, not only a later git checkout, if you need the conversation.
 
 ## What you need on the new PC
