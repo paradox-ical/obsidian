@@ -37,8 +37,10 @@ function walletText(wallet: Awaited<ReturnType<typeof readMemberWallet>>): strin
   if (wallet.marks.status !== "available") {
     return "Marks are unavailable.";
   }
-  const ingots = wallet.ingots.status === "available" ? `${wallet.ingots.available} available, ${wallet.ingots.escrow} in escrow` : wallet.ingots.status;
-  return `Marks: ${wallet.marks.available} available, ${wallet.marks.escrow} held. Ingots: ${ingots}. These balances are public.`;
+  const ingots = wallet.ingots.status === "available"
+    ? `**${wallet.ingots.available}** available\n**${wallet.ingots.escrow}** in escrow`
+    : wallet.ingots.status;
+  return `**Marks**\n**${wallet.marks.available}** available\n**${wallet.marks.escrow}** held\n\n**Ingots**\n${ingots}\n\n-# Balances are public.`;
 }
 
 export async function runEconomyCommand(db: PrismaClient, command: EconomyCommand): Promise<{ content: string }> {

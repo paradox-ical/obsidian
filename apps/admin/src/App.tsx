@@ -55,6 +55,28 @@ const CAPABILITY_LABELS: Record<string, string> = {
 
 const healthUrl = import.meta.env.VITE_BOT_HEALTH_URL || "http://localhost:8081/health";
 
+const MODULES = [
+  { href: "/community", title: "Verification", text: "Members verify in Discord. This page shows provider checks and role grants." },
+  { href: "/moderation", title: "Moderation", text: "Cases stay behind this desk. Other staff use Discord. Automatic ban is off." },
+  { href: "/tickets", title: "Tickets", text: "Member transcripts omit staff notes. Purchase disputes stay unfinished." },
+  { href: "/progression", title: "Progression", text: "Public dossiers show Marks and Ingots. Private bios stay hidden." },
+  { href: "/economy", title: "Economy", text: "Edit the routine month here. A preview does not grant Marks." },
+  { href: "/market", title: "Market", text: "5,000 Ingots total. 2,500 stay protected. Prices follow the scarcity curve, with no ceiling." },
+  { href: "/shop", title: "Shop", text: "The supply shop spends Marks. Steam keys are not crate loot." },
+  { href: "/lottery", title: "Lottery", text: "Tickets pool with a reserved 50 percent bonus. The draw time is unset until you save one." },
+  { href: "/dead-drop", title: "Dead Drop", text: "A shared 6 by 6 board. The opening hour is unset until you save one." },
+  { href: "/blackjack", title: "Blackjack", text: "Solo or social tables. The default maximum bet is 10 Marks." },
+  { href: "/characters", title: "Characters", text: "Level cap 50. Respec costs 5,000 Marks. Chat does not grant character points." },
+  { href: "/combat", title: "Combat", text: "Test duels use the shared D20 rules. Trades and listings hold gear until they clear." },
+  { href: "/world", title: "Regions", text: "Backstreets, Black Docks, and Inner Sanctum. Missions and recovery stay in the database." },
+  { href: "/contracts", title: "Contracts", text: "Daily, weekly, and monthly boards. Turning off pings does not stop the reward." },
+  { href: "/activities", title: "Activities", text: "Predictions, contests, and giveaways. A missing prize key is not invented." },
+  { href: "/gatherings", title: "Events", text: "Official events, RSVP, and crews. A missing token does not create a Discord event." },
+  { href: "/seasons", title: "Seasons", text: "Three calendar months. Rollover keeps wallets, characters, and gear. Ranked rating restarts at 1,000." },
+  { href: "/publications", title: "Publications", text: "Drafts, review, pins, stickies, and auto replies. Approval binds one revision." },
+  { href: "/operations", title: "Operations", text: "Health, jobs, maintenance, versions, and rollback. A draft is not active." },
+];
+
 function StaffGrant(props: { csrfToken: string }) {
   const [roleId, setRoleId] = useState("");
   const [capability, setCapability] = useState("economy_operations");
@@ -193,89 +215,64 @@ function AccessClosed() {
   const originMismatch = redirectOrigin !== null && redirectOrigin !== browserOrigin;
 
   return (
-    <Shell title={auth?.authenticated ? "Dashboard" : "Admin access is closed"}>
-      <section className="panel">
-        <p>
-          {oauthLabel === "oauth_ready"
-            ? "Discord OAuth is configured. This page does not treat a missing session as a successful login."
-            : "Discord OAuth is setup-required. Missing credentials do not start a session."}
-        </p>
-        <p>{providerLine}</p>
-        <p>Moderation rules, cases, and logs stay behind a staff session. Automatic ban is disabled.</p>
-        <p>Support tickets stay private. Staff notes are omitted from member transcripts. Purchase disputes stay unfinished.</p>
-        <p>Public dossiers show Marks and Ingots. There are 5,000 Ingots: 2,500 stay in the protected reserve and 2,500 are active. Prices follow the scarcity curve from a 10,000 Mark baseline, with no price ceiling. Balances are public. Estimated wealth is labelled estimated and price-sensitive. Private bios stay hidden.</p>
-        <p>Seasons last three calendar months. Rollover archives standings and keeps community XP, wallets, characters, gear, and lifetime PvP records. A new season starts ranked rating at 1,000. Polls are staff-created and suggestions are excluded. Temporary rooms close after inactivity, with no fixed lifetime.</p>
-        <p>Publication drafts are edited in the admin editor. Approval binds one revision, then chooses a destination. Review controls stay off the published message. Approved drafts can be scheduled, pinned, or kept as stickies, and auto replies and game-update sources are managed there too. <a href="/publications">Open the editor</a></p>
-        <p>Official events, RSVP, and crews are managed in the admin schedule. A missing Discord token does not create a native scheduled event. <a href="/gatherings">Open events and crews</a></p>
-        <p>Predictions, contests, and giveaways use escrow and stocked prizes. A missing shop integration does not invent a prize key. <a href="/activities">Open activities</a></p>
-        <p>Daily, weekly, and monthly contracts are authored here. Turning off completion pings does not stop the reward. <a href="/contracts">Open contracts</a></p>
-        <p>Characters cap at level 50. A respec costs 5,000 Marks and a class change costs 15,000. Community chat does not grant character points. <a href="/characters">Open characters</a></p>
-        <p>Gear instances keep their own rolls. Test duels use the shared D20 rules. Casual and ranked queues escrow equal Marks stakes. Direct trades clear both confirmations when an offer changes, and listed gear stays held until it sells, expires, or is cancelled. <a href="/combat">Open combat</a></p>
-        <p>The supply shop spends Marks. An Ingot purchase stays in escrow until private delivery is committed. Steam keys are not crate loot. <a href="/shop">Open the shop</a></p>
-        <p>The daily lottery pools ticket payments and a reserved 50 percent bonus. Fewer than three members rolls the draw forward. The draw time is not selected until staff save one. <a href="/lottery">Open the lottery</a></p>
-        <p>Dead Drop is a shared 6 by 6 board. Three paid picks reveal one cell each. The jackpot closes the board, and an unfound jackpot rolls to the next day without a new starting seed. The opening hour is not selected until staff save one. <a href="/dead-drop">Open Dead Drop</a></p>
-        <p>Blackjack plays solo or at a social table against one dealer. The house reserves split and double exposure before the bet. The default maximum bet is 10 Marks. <a href="/blackjack">Open blackjack</a></p>
-        <p>Backstreets, Black Docks, and Inner Sanctum open by level. Missions and crew runs keep their state in the database. Recovery is timed. <a href="/world">Open regions</a></p>
-        <p>Verification, roles, and provider status stay on the admin access plan. Members still verify in Discord. <a href="/community">Open verification</a></p>
-        <p>Moderation cases stay behind an admin session. Other staff use Discord. Automatic ban is disabled. <a href="/moderation">Open moderation</a></p>
-        <p>Support tickets keep staff notes out of member transcripts. <a href="/tickets">Open tickets</a></p>
-        <p>Dossiers and invite history are read from stored progression. <a href="/progression">Open progression</a></p>
-        <p>Marks budgets and the routine month are edited from economy settings. A preview does not grant Marks. <a href="/economy">Open economy</a></p>
-        <p>The Ingot curve and backing are on the market page. The protected reserve stays 2,500. <a href="/market">Open the market</a></p>
-        <p>Seasons, staff polls, and temporary rooms are managed together. Suggestions are excluded. <a href="/seasons">Open seasons</a></p>
-        <p>Health, dead jobs, maintenance, configuration versions, rollback, and simulations are on the operations page. A draft is not active. <a href="/operations">Open operations</a></p>
-        <p className="status-line">
-          Authentication status: {authError ?? oauthLabel}. Access: {auth?.reason ?? accessLabel}.
-        </p>
-        {signInMessage ? <p>{signInMessage}</p> : null}
-        {auth?.redirectUri ? <p>Discord must use this exact redirect: {auth.redirectUri}</p> : null}
-        {originMismatch ? <p>This page is open at {browserOrigin}, but sign-in is configured for {redirectOrigin}. Set ADMIN_ORIGIN to {browserOrigin} and restart the admin container.</p> : null}
-        {auth?.oauth === "oauth_ready" && !auth.authenticated ? <p><a href="/auth/discord">Continue with Discord</a></p> : null}
-        {auth?.authenticated && auth.csrfToken ? <StaffGrant csrfToken={auth.csrfToken} /> : null}
-        {auth?.authenticated && auth.csrfToken ? (
-          <button
-            type="button"
-            onClick={() => {
-              void fetch("/auth/logout", {
-                method: "POST",
-                headers: { "x-csrf-token": auth.csrfToken ?? "" },
-              }).then(() => {
-                window.location.assign("/");
-              });
-            }}
-          >
-            Log out
-          </button>
-        ) : null}
-      </section>
-      <section className="panel">
-        <h2>Bot health</h2>
-        {healthError ? <p>{healthError}</p> : null}
-        {health ? (
-          <dl className="facts">
-            <div>
-              <dt>Process status</dt>
-              <dd>{health.status ?? "unknown"}</dd>
-            </div>
-            <div>
-              <dt>Database</dt>
-              <dd>{health.database ?? "unknown"}</dd>
-            </div>
-            <div>
-              <dt>Discord</dt>
-              <dd>{health.discord ?? "unknown"}</dd>
-            </div>
-            <div>
-              <dt>Jobs</dt>
-              <dd>{health.jobs ?? "unknown"}</dd>
-            </div>
-            <div>
-              <dt>Foundation revision</dt>
-              <dd>{health.foundationRevision ?? "none"}</dd>
-            </div>
-          </dl>
-        ) : null}
-      </section>
+    <Shell title={auth?.authenticated ? "Dashboard" : "Sign in"}>
+      <div className="card-grid">
+        <section className="panel">
+          <h2>Access</h2>
+          <p>
+            {oauthLabel === "oauth_ready"
+              ? "Discord sign-in is configured. Opening this page is not a login."
+              : "Discord sign-in is not configured yet. Missing credentials do not start a session."}
+          </p>
+          <p className="status-line">Status: {authError ?? oauthLabel}. Access: {auth?.reason ?? accessLabel}.</p>
+          {signInMessage ? <p>{signInMessage}</p> : null}
+          {auth?.redirectUri ? <p>Discord redirect: {auth.redirectUri}</p> : null}
+          {originMismatch ? <p>This page is {browserOrigin}. Sign-in is set to {redirectOrigin}. Set ADMIN_ORIGIN to this page's address and restart admin.</p> : null}
+          {auth?.oauth === "oauth_ready" && !auth.authenticated ? <p><a href="/auth/discord">Continue with Discord</a></p> : null}
+          {auth?.authenticated && auth.csrfToken ? (
+            <button
+              type="button"
+              onClick={() => {
+                void fetch("/auth/logout", {
+                  method: "POST",
+                  headers: { "x-csrf-token": auth.csrfToken ?? "" },
+                }).then(() => {
+                  window.location.assign("/");
+                });
+              }}
+            >
+              Log out
+            </button>
+          ) : null}
+        </section>
+        <section className="panel">
+          <h2>Bot health</h2>
+          {healthError ? <p>{healthError}</p> : null}
+          {health ? (
+            <dl className="facts">
+              <div><dt>Process</dt><dd>{health.status ?? "unknown"}</dd></div>
+              <div><dt>Database</dt><dd>{health.database ?? "unknown"}</dd></div>
+              <div><dt>Discord</dt><dd>{health.discord ?? "unknown"}</dd></div>
+              <div><dt>Jobs</dt><dd>{health.jobs ?? "unknown"}</dd></div>
+              <div><dt>Revision</dt><dd>{health.foundationRevision ?? "none"}</dd></div>
+            </dl>
+          ) : healthError ? null : <p>Health has not loaded.</p>}
+          <p>{providerLine}</p>
+        </section>
+        {MODULES.map((module) => (
+          <section className="panel" key={module.href}>
+            <h2>{module.title}</h2>
+            <p>{module.text}</p>
+            <a className="card-link" href={module.href}>Open {module.title}</a>
+          </section>
+        ))}
+      </div>
+      {auth?.authenticated && auth.csrfToken ? (
+        <section className="panel">
+          <h2>Staff roles</h2>
+          <StaffGrant csrfToken={auth.csrfToken} />
+        </section>
+      ) : null}
     </Shell>
   );
 }

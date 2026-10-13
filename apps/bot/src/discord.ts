@@ -1,5 +1,6 @@
 import type { MessageReaction, PartialMessageReaction, PartialUser, User } from "discord.js";
 
+import { outcomeHeading, presentOutcome } from "./present.js";
 import { scrubSecrets } from "./redact.js";
 import { readSlashOptions } from "./slash-options.js";
 
@@ -165,12 +166,13 @@ export async function startDiscordGateway(input: {
         return;
       }
       void (async () => {
+        const visibleFlags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
         if (modal) {
-          await modal.deferReply({ flags: MessageFlags.Ephemeral });
+          await modal.deferReply({ flags: visibleFlags });
         } else if (component) {
           await component.deferUpdate();
         } else if (command) {
-          await command.deferReply({ flags: MessageFlags.Ephemeral });
+          await command.deferReply({ flags: visibleFlags });
         }
         const rawRoles = interaction.inGuild() && interaction.member ? interaction.member.roles : [];
         const roleIds = Array.isArray(rawRoles) ? [...rawRoles] : [...rawRoles.cache.keys()];
@@ -241,13 +243,24 @@ export async function startDiscordGateway(input: {
             const file = extras && "bytes" in extras ? extras : extras?.file;
             const attachment = file ? [{ attachment: Buffer.from(file.bytes), name: file.filename }] : undefined;
             const text = content.length > 1900 ? `${content.slice(0, 1890)}\nThe rest was cut so Discord could show this.` : content;
+            const source = command?.commandName ?? component?.customId ?? "Verification";
+            const subcommand = command?.options.getSubcommand(false) ?? undefined;
+            const warning = /nothing was written|did not finish|not allowed|did not go through|unavailable|not completed/i.test(text);
+            const presented = presentOutcome({
+              heading: outcomeHeading(source),
+              ...(subcommand ? { detail: outcomeHeading(subcommand) } : {}),
+              body: text,
+              warning,
+              ...(extras && "components" in extras && extras.components ? { rows: extras.components } : {}),
+              ...(file ? { fileName: file.filename } : {}),
+            });
             const payload = {
-              content: text,
+              components: presented.components,
+              flags: presented.flags | MessageFlags.Ephemeral,
               ...(attachment ? { files: attachment } : {}),
-              ...(extras && "components" in extras && extras.components ? { components: extras.components } : {}),
             };
             if (component && !modal) {
-              await component.followUp({ ...payload, flags: MessageFlags.Ephemeral });
+              await component.followUp(payload);
               return;
             }
             const message = await (modal ?? command)?.editReply(payload);
@@ -273,12 +286,17 @@ export async function startDiscordGateway(input: {
         });
       })().catch((error: unknown) => {
         input.log(scrubSecrets(error instanceof Error ? error.message : "Interaction failed.", [input.token]));
-        const notice = "That command did not finish. Nothing new was confirmed.";
+        const notice = presentOutcome({
+          heading: outcomeHeading(command?.commandName ?? component?.customId ?? "Collective"),
+          body: "That command did not finish. Nothing new was confirmed.",
+          warning: true,
+        });
+        const failedPayload = { components: notice.components, flags: notice.flags | MessageFlags.Ephemeral };
         const failed = command
-          ? command.editReply({ content: notice })
+          ? command.editReply(failedPayload)
           : modal
-            ? modal.editReply({ content: notice })
-            : component?.followUp({ content: notice, flags: MessageFlags.Ephemeral });
+            ? modal.editReply(failedPayload)
+            : component?.followUp(failedPayload);
         void failed?.catch(() => undefined);
       });
     });

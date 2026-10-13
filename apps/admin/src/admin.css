@@ -1,46 +1,131 @@
-.shell {
-  width: min(46rem, calc(100% - 2rem));
-  margin: 0 auto;
-  padding: 3rem 0 4rem;
+.app-frame {
+  display: grid;
+  grid-template-columns: 16.5rem minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-.masthead {
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  padding: 1.1rem 0.85rem 2rem;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--line);
+}
+
+.brand {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin: 0.2rem 0.4rem 1.2rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand small {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .diamond {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2rem;
+  height: 2rem;
   color: var(--metal);
+}
+
+.nav-group {
+  margin-top: 1rem;
+}
+
+.nav-group p {
+  margin: 0 0.7rem 0.35rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nav-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-group a {
+  display: block;
+  margin: 0.15rem 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.7rem;
+  color: #ddd6f0;
+  text-decoration: none;
+}
+
+.nav-group a[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.workspace {
+  padding: 1.4rem 1.6rem 3rem;
+}
+
+.masthead {
+  margin-bottom: 1.1rem;
 }
 
 .eyebrow {
   margin: 0;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--metal);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
 }
 
 h1,
-h2 {
-  margin: 0.2rem 0 0;
-  font-weight: 560;
+h2,
+h3 {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+h1 {
+  font-size: 1.7rem;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.85rem;
 }
 
 .panel {
-  background: var(--bg-raised);
+  background: rgba(27, 24, 38, 0.92);
   border: 1px solid var(--line);
-  border-radius: 0.4rem;
-  padding: 1rem 1.1rem;
-  margin-top: 1rem;
+  border-radius: 1rem;
+  padding: 1rem 1.05rem 1.1rem;
 }
 
-.panel p {
+.panel h2 {
+  font-size: 1.05rem;
+}
+
+.panel p,
+.lede {
+  color: var(--muted);
   line-height: 1.5;
+}
+
+.panel a.card-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  color: #efe9ff;
+  text-decoration: none;
 }
 
 .status-line {
@@ -49,52 +134,72 @@ h2 {
 
 .facts {
   display: grid;
-  gap: 0.75rem;
-  margin: 1rem 0 0;
+  gap: 0.7rem;
+  margin: 0.8rem 0 0;
 }
 
 .facts div {
   display: grid;
-  grid-template-columns: 11rem 1fr;
-  gap: 0.75rem;
+  gap: 0.15rem;
 }
 
 dt {
   color: var(--muted);
+  font-size: 0.78rem;
 }
 
 dd {
   margin: 0;
 }
 
-.editor-grid label,
-.editor-grid fieldset {
+label {
   display: block;
-  margin-top: 0.8rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
-.editor-grid input,
-.editor-grid textarea,
-.editor-grid select {
+input,
+textarea,
+select {
   display: block;
   width: 100%;
-  margin-top: 0.25rem;
+  margin-top: 0.3rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: #12101a;
+  color: var(--text);
 }
 
-.editor-grid textarea {
+textarea {
   min-height: 5rem;
+}
+
+button,
+.editor-actions a {
+  min-height: 2.75rem;
+  margin-top: 0.8rem;
+  padding: 0.55rem 0.95rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  cursor: pointer;
 }
 
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 1rem;
 }
 
 .preview {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  padding: 0.8rem;
+  border-radius: 0.75rem;
+  background: #12101a;
 }
 
 .skip-link {
@@ -105,6 +210,7 @@ dd {
   background: var(--bg-raised);
   color: inherit;
   padding: 0.5rem 0.75rem;
+  z-index: 2;
 }
 
 .skip-link:focus {
@@ -116,18 +222,24 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--metal);
+  outline: 2px solid #c4b6ff;
   outline-offset: 2px;
 }
 
-button,
-.editor-actions a {
-  min-height: 2.75rem;
-}
-
-@media (max-width: 40rem) {
-  .facts div {
+@media (max-width: 860px) {
+  .app-frame {
     grid-template-columns: 1fr;
-    gap: 0.15rem;
+  }
+
+  .sidebar {
+    position: sticky;
+    height: auto;
+    max-height: 42vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .workspace {
+    padding: 1rem;
   }
 }
