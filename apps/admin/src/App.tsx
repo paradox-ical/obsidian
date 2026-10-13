@@ -1,6 +1,6 @@
 import { Shell } from "@collective/ui";
-import { useEffect, useState } from "react";
-import { Route, Routes } from "react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { Route, Routes, useSearchParams } from "react-router";
 
 import { PublicationEditor } from "./publications-editor.js";
 import { ActivitiesPage } from "./activities-page.js";
@@ -30,11 +30,100 @@ interface AuthStatus {
   access?: string;
   reason?: string;
   csrfToken?: string;
+  redirectUri?: string;
 }
+
+const SIGN_IN_REASONS: Record<string, string> = {
+  denied: "Discord accepted the login, but this account is not the server owner and has no dashboard grant.",
+  not_a_member: "That Discord account is not a member of the test server.",
+  invalid_code: "Discord rejected the login. The redirect URL below has to match the developer portal exactly, and the client secret has to be the current one.",
+  invalid_state: "That login attempt expired. Use Continue with Discord again.",
+  directory_unavailable: "Discord could not confirm server membership. The bot has to be in the test server.",
+};
+
+const CAPABILITY_LABELS: Record<string, string> = {
+  moderation: "Moderation",
+  verification_override: "Verification override",
+  tickets: "Tickets",
+  event_management: "Events",
+  economy_operations: "Economy operations",
+  publications: "Publications",
+  content_management: "Content",
+  statistics: "Statistics",
+  full_administration: "Full administration",
+};
 
 const healthUrl = import.meta.env.VITE_BOT_HEALTH_URL || "http://localhost:8081/health";
 
+function StaffGrant(props: { csrfToken: string }) {
+  const [roleId, setRoleId] = useState("");
+  const [capability, setCapability] = useState("economy_operations");
+  const [reason, setReason] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [grants, setGrants] = useState<Array<{ roleId: string; capability: string }>>([]);
+  const [owner, setOwner] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/access/capabilities", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          return;
+        }
+        const body = (await response.json()) as { owner?: boolean; grants?: Array<{ roleId: string; capability: string }> };
+        setOwner(body.owner === true);
+        setGrants(body.grants ?? []);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  if (!owner) {
+    return null;
+  }
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void fetch("/api/access/capabilities", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-csrf-token": props.csrfToken },
+      body: JSON.stringify({ roleId, capability, reason }),
+    }).then(async (response) => {
+      if (!response.ok) {
+        setNotice("That role was not granted. Use the role's numeric id and a short reason.");
+        return;
+      }
+      setNotice(`${CAPABILITY_LABELS[capability] ?? capability} now applies to that role.`);
+      setGrants((current) => current.some((grant) => grant.roleId === roleId && grant.capability === capability) ? current : [...current, { roleId, capability }]);
+    });
+  };
+
+  return (
+    <form onSubmit={submit}>
+      <p>Grant a Discord role the ability to use staff commands. Economy operations is what `/economy adjust` checks. Paste the role id from Discord.</p>
+      <label>
+        Role id
+        <input value={roleId} onChange={(event) => setRoleId(event.target.value)} required />
+      </label>
+      <label>
+        Capability
+        <select value={capability} onChange={(event) => setCapability(event.target.value)}>
+          {Object.entries(CAPABILITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </label>
+      <label>
+        Reason
+        <input value={reason} onChange={(event) => setReason(event.target.value)} required />
+      </label>
+      <button type="submit">Grant role</button>
+      {notice ? <p>{notice}</p> : null}
+      {grants.length > 0 ? <p>{grants.map((grant) => `${CAPABILITY_LABELS[grant.capability] ?? grant.capability} on ${grant.roleId}`).join(". ")}.</p> : null}
+    </form>
+  );
+}
+
 function AccessClosed() {
+  const [searchParams] = useSearchParams();
   const [health, setHealth] = useState<BotHealth | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
@@ -97,6 +186,11 @@ function AccessClosed() {
 
   const oauthLabel = auth?.oauth === "oauth_ready" ? "oauth_ready" : "setup_required";
   const accessLabel = auth?.authenticated ? "allowed" : "denied";
+  const signIn = searchParams.get("sign-in");
+  const signInMessage = signIn ? SIGN_IN_REASONS[signIn] ?? "Discord sign-in did not open the dashboard." : null;
+  const browserOrigin = window.location.origin;
+  const redirectOrigin = auth?.redirectUri ? new URL(auth.redirectUri).origin : null;
+  const originMismatch = redirectOrigin !== null && redirectOrigin !== browserOrigin;
 
   return (
     <Shell title={auth?.authenticated ? "Dashboard" : "Admin access is closed"}>
@@ -133,7 +227,11 @@ function AccessClosed() {
         <p className="status-line">
           Authentication status: {authError ?? oauthLabel}. Access: {auth?.reason ?? accessLabel}.
         </p>
+        {signInMessage ? <p>{signInMessage}</p> : null}
+        {auth?.redirectUri ? <p>Discord must use this exact redirect: {auth.redirectUri}</p> : null}
+        {originMismatch ? <p>This page is open at {browserOrigin}, but sign-in is configured for {redirectOrigin}. Set ADMIN_ORIGIN to {browserOrigin} and restart the admin container.</p> : null}
         {auth?.oauth === "oauth_ready" && !auth.authenticated ? <p><a href="/auth/discord">Continue with Discord</a></p> : null}
+        {auth?.authenticated && auth.csrfToken ? <StaffGrant csrfToken={auth.csrfToken} /> : null}
         {auth?.authenticated && auth.csrfToken ? (
           <button
             type="button"

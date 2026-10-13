@@ -1,5 +1,6 @@
 import {
   bindPanelPost,
+  ensureGuild,
   deliverDuePublication,
   createPrismaClient,
   deliverRoleUpdate,
@@ -123,6 +124,18 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
       log: (message) => logger.info(scrubSecrets(message, secrets)),
       onPanelPosted: async (post) => {
         await bindPanelPost(prisma, post);
+      },
+      onGuilds: async (guilds) => {
+        for (const guild of guilds) {
+          if (!guild.ownerUserId) {
+            continue;
+          }
+          const existing = await prisma.guild.findUnique({ where: { guildId: guild.guildId } });
+          if (existing?.ownerUserId) {
+            continue;
+          }
+          await ensureGuild(prisma, { guildId: guild.guildId, ownerUserId: guild.ownerUserId });
+        }
       },
       onReaction: async (reaction) => {
         if (database !== "ok") {
@@ -467,7 +480,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
           now: new Date(),
         });
         if (!routed.handled || routed.access === "denied") {
-          await event.reply("That action is no longer available.");
+          await event.reply("That command is registered, but this build does not carry it out yet.");
           return;
         }
         await event.reply(

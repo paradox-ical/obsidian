@@ -1,6 +1,7 @@
 import type { MessageReaction, PartialMessageReaction, PartialUser, User } from "discord.js";
 
 import { scrubSecrets } from "./redact.js";
+import { readSlashOptions } from "./slash-options.js";
 
 export interface DiscordComponentRow {
   type: 1;
@@ -48,6 +49,7 @@ export async function startDiscordGateway(input: {
   log: (message: string) => void;
   onInteraction?: (event: DiscordInteractionEvent) => Promise<void>;
   onPanelPosted?: (post: { messageId: string; channelId: string; guildId: string; panelId: string }) => Promise<void>;
+  onGuilds?: (guilds: Array<{ guildId: string; ownerUserId: string }>) => Promise<void>;
   onReaction?: (event: {
     messageId: string;
     guildId: string;
@@ -87,6 +89,13 @@ export async function startDiscordGateway(input: {
     client.once(Events.ClientReady, (readyClient) => {
       connection.state = "ready";
       input.log(`Discord gateway connected as ${readyClient.user.tag}. Commands were not registered.`);
+      const guilds = [...readyClient.guilds.cache.values()].map((guild) => ({
+        guildId: guild.id,
+        ownerUserId: guild.ownerId,
+      }));
+      void input.onGuilds?.(guilds).catch((error: unknown) => {
+        input.log(scrubSecrets(error instanceof Error ? error.message : "Guild owner sync failed.", [input.token]));
+      });
     });
     client.on(Events.InteractionCreate, (interaction) => {
       if (interaction.isButton() && (interaction.customId.startsWith("publish:approve:") || interaction.customId.startsWith("publish:changes:"))) {
@@ -143,13 +152,15 @@ export async function startDiscordGateway(input: {
       const modal = publishModal ?? (interaction.isModalSubmit() && interaction.customId === "community:captcha-submit" ? interaction : null);
       const command = interaction.isChatInputCommand() ? interaction : null;
       const component = interaction.isMessageComponent() ? interaction : null;
-      const communityCommand =
-        command !== null && ["verify", "roles", "accounts", "temproles", "mod", "report", "logs", "support", "rank", "profile", "birthday", "invites", "leaderboard", "community"].includes(command.commandName);
       const relevant =
         modal !== null ||
-        (command && (command.commandName === "stats" || command.commandName === "economy" || command.commandName === "market" || command.commandName === "publish" || communityCommand)) ||
-        (component && (component.customId.startsWith("market:") || component.customId.startsWith("publish:"))) ||
-        (component && (component.customId.startsWith("session:") || component.customId.startsWith("community:") || component.customId.startsWith("ticket:")));
+        command !== null ||
+        (component !== null &&
+          (component.customId.startsWith("market:") ||
+            component.customId.startsWith("publish:") ||
+            component.customId.startsWith("session:") ||
+            component.customId.startsWith("community:") ||
+            component.customId.startsWith("ticket:")));
       if (!relevant || !input.onInteraction) {
         return;
       }
@@ -182,178 +193,11 @@ export async function startDiscordGateway(input: {
           options["feedback"] = publishModal.fields.getTextInputValue("feedback");
         }
         if (command) {
+          Object.assign(options, readSlashOptions(command.options.data));
           const subcommand = command.options.getSubcommand(false);
           if (subcommand) {
             options["subcommand"] = subcommand;
           }
-          const user = command.options.getUser("member");
-          const role = command.options.getRole("role");
-          const answer = command.options.getString("answer");
-          const note = command.options.getString("note");
-          const reason = command.options.getString("reason");
-          const provider = command.options.getString("provider");
-          const handle = command.options.getString("handle");
-          const visibility = command.options.getString("visibility");
-          const days = command.options.getInteger("days");
-          const clear = command.options.getBoolean("clear");
-          const revoke = command.options.getBoolean("revoke");
-          const action = command.options.getString("action");
-          const caseId = command.options.getString("case");
-          const query = command.options.getString("query");
-          const points = command.options.getInteger("points");
-          const panelName = command.options.getString("name");
-          const category = command.options.getString("category");
-          const ticket = command.options.getString("ticket");
-          const reference = command.options.getString("reference");
-          const kind = command.options.getString("kind");
-          const month = command.options.getInteger("month");
-          const day = command.options.getInteger("day");
-          const year = command.options.getInteger("year");
-          const timezone = command.options.getString("timezone");
-          const announce = command.options.getBoolean("announce");
-          const confidence = command.options.getString("confidence");
-          const bio = command.options.getString("bio");
-          const frame = command.options.getString("frame");
-          const background = command.options.getString("background");
-          const season = command.options.getString("season");
-          const question = command.options.getString("question");
-          const choice = command.options.getString("choice");
-          const poll = command.options.getString("poll");
-          const page = command.options.getInteger("page");
-          const amount = command.options.getInteger("amount");
-          const side = command.options.getString("side");
-          const anonymous = command.options.getBoolean("anonymous");
-          if (user) options["member"] = user.id;
-          if (role) options["role"] = role.id;
-          if (answer) options["answer"] = answer;
-          if (note) options["note"] = note;
-          if (reason) options["reason"] = reason;
-          if (provider) options["provider"] = provider;
-          if (handle) options["handle"] = handle;
-          if (visibility) options["visibility"] = visibility;
-          if (days !== null) options["days"] = days;
-          if (clear !== null) options["clear"] = clear;
-          if (revoke !== null) options["revoke"] = revoke;
-          if (panelName) options["name"] = panelName;
-          if (action) options["action"] = action;
-          if (caseId) options["case"] = caseId;
-          if (query) options["query"] = query;
-          if (points !== null) options["points"] = points;
-          if (category) options["category"] = category;
-          if (ticket) options["ticket"] = ticket;
-          if (reference) options["reference"] = reference;
-          if (kind) options["kind"] = kind;
-          if (month !== null) options["month"] = month;
-          if (day !== null) options["day"] = day;
-          if (year !== null) options["year"] = year;
-          if (timezone) options["timezone"] = timezone;
-          if (announce !== null) options["announce"] = announce;
-          if (confidence) options["confidence"] = confidence;
-          if (bio) options["bio"] = bio;
-          if (frame) options["frame"] = frame;
-          if (background) options["background"] = background;
-          if (season) options["season"] = season;
-          if (question) options["question"] = question;
-          if (choice) options["choice"] = choice;
-          if (poll) options["poll"] = poll;
-          if (page !== null) options["page"] = page;
-          if (amount !== null) options["amount"] = amount;
-          if (side) options["side"] = side;
-          if (anonymous !== null) options["anonymous"] = anonymous;
-          const cycle = command.options.getString("cycle");
-          const assignment = command.options.getString("assignment");
-          const pings = command.options.getBoolean("pings");
-          const delivery = command.options.getString("delivery");
-          const channel = command.options.getString("channel");
-          const daily = command.options.getBoolean("daily");
-          const weekly = command.options.getBoolean("weekly");
-          const monthly = command.options.getBoolean("monthly");
-          const title = command.options.getString("title");
-          const objective = command.options.getString("objective");
-          const policy = command.options.getString("policy");
-          const target = command.options.getInteger("target");
-          const reward = command.options.getInteger("reward");
-          const board = command.options.getString("board");
-          if (cycle) options["cycle"] = cycle;
-          if (assignment) options["assignment"] = assignment;
-          if (pings !== null) options["pings"] = pings;
-          if (delivery) options["delivery"] = delivery;
-          if (channel) options["channel"] = channel;
-          if (daily !== null) options["daily"] = daily;
-          if (weekly !== null) options["weekly"] = weekly;
-          if (monthly !== null) options["monthly"] = monthly;
-          if (title) options["title"] = title;
-          if (objective) options["objective"] = objective;
-          if (policy) options["policy"] = policy;
-          if (target !== null) options["target"] = target;
-          if (reward !== null) options["reward"] = reward;
-          if (board) options["board"] = board;
-          const classSlug = command.options.getString("class");
-          const stat = command.options.getString("stat");
-          const slot = command.options.getInteger("slot");
-          const ability = command.options.getString("ability");
-          if (classSlug) options["class"] = classSlug;
-          if (stat) options["stat"] = stat;
-          if (slot !== null) options["slot"] = slot;
-          if (ability) options["ability"] = ability;
-          const stake = command.options.getInteger("stake");
-          const member = command.options.getString("member");
-          const match = command.options.getString("match");
-          const style = command.options.getString("style");
-          const mode = command.options.getString("mode");
-          const opponent = command.options.getString("opponent");
-          const battle = command.options.getString("battle");
-          const move = command.options.getString("move");
-          const item = command.options.getString("item");
-          const request = command.options.getString("request");
-          const recipe = command.options.getString("recipe");
-          const listing = command.options.getString("listing");
-          const trade = command.options.getString("trade");
-          const affix = command.options.getString("affix");
-          const marks = command.options.getInteger("marks");
-          const price = command.options.getInteger("price");
-          const offer = command.options.getString("offer");
-          const crate = command.options.getString("crate");
-          const purchase = command.options.getString("purchase");
-          const quote = command.options.getString("quote");
-          const quantity = command.options.getInteger("quantity");
-          if (stake !== null) options["stake"] = stake;
-          if (member) options["member"] = member;
-          if (match) options["match"] = match;
-          if (style) options["style"] = style;
-          if (mode) options["mode"] = mode;
-          if (opponent) options["opponent"] = opponent;
-          if (battle) options["battle"] = battle;
-          if (move) options["move"] = move;
-          if (item) options["item"] = item;
-          if (request) options["request"] = request;
-          if (recipe) options["recipe"] = recipe;
-          if (listing) options["listing"] = listing;
-          if (trade) options["trade"] = trade;
-          if (affix) options["affix"] = affix;
-          if (marks !== null) options["marks"] = marks;
-          if (price !== null) options["price"] = price;
-          if (offer) options["offer"] = offer;
-          if (crate) options["crate"] = crate;
-          if (purchase) options["purchase"] = purchase;
-          if (quote) options["quote"] = quote;
-          if (quantity !== null) options["quantity"] = quantity;
-          const coordinate = command.options.getString("coordinate");
-          const charge = command.options.getString("charge");
-          const payload = command.options.getString("payload");
-          const enabled = command.options.getBoolean("enabled");
-          if (coordinate) options["coordinate"] = coordinate;
-          if (charge) options["charge"] = charge;
-          if (payload) options["payload"] = payload;
-          if (enabled !== null) options["enabled"] = enabled;
-          const table = command.options.getString("table");
-          if (table) options["table"] = table;
-          const region = command.options.getString("region");
-          const difficulty = command.options.getString("difficulty");
-          const notify = command.options.getBoolean("notify");
-          if (region) options["region"] = region;
-          if (difficulty) options["difficulty"] = difficulty;
-          if (notify !== null) options["notify"] = notify;
         }
         const targetMember = command?.options.getMember("member") ?? null;
         const targetRoleIds =
@@ -396,8 +240,9 @@ export async function startDiscordGateway(input: {
           reply: async (content, extras) => {
             const file = extras && "bytes" in extras ? extras : extras?.file;
             const attachment = file ? [{ attachment: Buffer.from(file.bytes), name: file.filename }] : undefined;
+            const text = content.length > 1900 ? `${content.slice(0, 1890)}\nThe rest was cut so Discord could show this.` : content;
             const payload = {
-              content,
+              content: text,
               ...(attachment ? { files: attachment } : {}),
               ...(extras && "components" in extras && extras.components ? { components: extras.components } : {}),
             };
@@ -417,13 +262,24 @@ export async function startDiscordGateway(input: {
                 panelId: extras.bindPanelId,
               });
             }
-            for (const emoji of extras && "reactions" in extras ? (extras.reactions ?? []) : []) {
-              await message.react(emoji);
+            try {
+              for (const emoji of extras && "reactions" in extras ? (extras.reactions ?? []) : []) {
+                await message.react(emoji);
+              }
+            } catch (error: unknown) {
+              input.log(scrubSecrets(error instanceof Error ? error.message : "Reaction failed.", [input.token]));
             }
           },
         });
       })().catch((error: unknown) => {
         input.log(scrubSecrets(error instanceof Error ? error.message : "Interaction failed.", [input.token]));
+        const notice = "That command did not finish. Nothing new was confirmed.";
+        const failed = command
+          ? command.editReply({ content: notice })
+          : modal
+            ? modal.editReply({ content: notice })
+            : component?.followUp({ content: notice, flags: MessageFlags.Ephemeral });
+        void failed?.catch(() => undefined);
       });
     });
     const onReaction = async (

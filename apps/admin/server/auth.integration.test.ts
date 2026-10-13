@@ -131,11 +131,13 @@ describe("admin authentication boundaries", () => {
     });
 
     const member = await login(`${memberId}-code`);
-    expect(member.status).toBe(403);
+    expect(member.status).toBe(302);
+    expect(member.headers.get("location")).toContain("sign-in=denied");
     expect(member.headers.get("set-cookie")).toBeNull();
 
     const moderator = await login(`${moderatorId}-code`);
-    expect(moderator.status).toBe(403);
+    expect(moderator.status).toBe(302);
+    expect(moderator.headers.get("location")).toContain("sign-in=denied");
     expect(moderator.headers.get("set-cookie")).toBeNull();
 
     const memberStats = await fetch(`${baseUrl}/api/stats`);

@@ -39,6 +39,7 @@ import { handleOperationsRoute } from "./operations-routes.js";
 import { handleContractRoute } from "./contract-routes.js";
 import { handleGatheringRoute } from "./gathering-routes.js";
 import { handleSeasonRoute } from "./season-routes.js";
+import { handleAccessRoute } from "./access-routes.js";
 import type { DiscordDirectory } from "./directory.js";
 
 const SESSION_COOKIE = "collective_session";
@@ -93,6 +94,11 @@ export async function handleAdminRequest(
 
   if (request.method === "GET" && url.pathname === "/api/stats") {
     await sendStats(request, response, deps, now);
+    return true;
+  }
+
+  if (url.pathname.startsWith("/api/access")) {
+    await handleAccessRoute(request, response, deps, now, url);
     return true;
   }
 
@@ -247,24 +253,24 @@ async function finishLogin(
   const code = url.searchParams.get("code") ?? "";
   const stateOk = state ? await consumeOauthState(deps.db, state, now) : false;
   if (!stateOk || !code) {
-    send(response, 400, { error: "invalid_state", access: "denied" });
+    refuseLogin(response, deps.env, "invalid_state");
     return;
   }
   let exchanged: { userId: string } | null;
   try {
     exchanged = await deps.directory.exchange(code);
   } catch {
-    send(response, 503, { error: "directory_unavailable", access: "denied" });
+    refuseLogin(response, deps.env, "directory_unavailable");
     return;
   }
   const userId = exchanged?.userId ?? null;
   if (!userId) {
-    send(response, 400, { error: "invalid_code", access: "denied" });
+    refuseLogin(response, deps.env, "invalid_code");
     return;
   }
   const allowed = await allowDashboard(deps, deps.guildId, userId);
   if (!allowed.ok) {
-    send(response, allowed.status, { error: allowed.error, access: "denied" });
+    refuseLogin(response, deps.env, allowed.error);
     return;
   }
   const session = await createAdminSession(deps.db, {
@@ -289,7 +295,7 @@ async function sendStatus(
 ) {
   const token = readCookie(request.headers.cookie, SESSION_COOKIE);
   if (!token) {
-    send(response, 200, { authenticated: false, oauth, access: "denied" });
+    send(response, 200, { authenticated: false, oauth, access: "denied", redirectUri: callbackUrl(deps.env) });
     return;
   }
   const current = await currentDashboard(deps, token, now);
@@ -371,6 +377,17 @@ async function allowDashboard(deps: AdminDeps, guildId: string, userId: string) 
     return { ok: false as const, status: 403, error: "denied" };
   }
   return { ok: true as const, roleIds: member.roleIds };
+}
+
+function refuseLogin(response: ServerResponse, env: AppEnv, reason: string): void {
+  const location = new URL(env.adminOrigin);
+  location.pathname = "/";
+  location.searchParams.set("sign-in", reason);
+  response.writeHead(302, {
+    location: location.toString(),
+    "cache-control": "no-store",
+  });
+  response.end();
 }
 
 function callbackUrl(env: AppEnv): string {

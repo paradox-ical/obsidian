@@ -38,7 +38,7 @@ function walletText(wallet: Awaited<ReturnType<typeof readMemberWallet>>): strin
     return "Marks are unavailable.";
   }
   const ingots = wallet.ingots.status === "available" ? `${wallet.ingots.available} available, ${wallet.ingots.escrow} in escrow` : wallet.ingots.status;
-  return `Marks ${wallet.marks.available} available, ${wallet.marks.escrow} in escrow. Ingots ${ingots}. Balances are public.`;
+  return `Marks: ${wallet.marks.available} available, ${wallet.marks.escrow} held. Ingots: ${ingots}. These balances are public.`;
 }
 
 export async function runEconomyCommand(db: PrismaClient, command: EconomyCommand): Promise<{ content: string }> {
@@ -49,11 +49,11 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
   if (command.subcommand === "history") {
     const staff = (await actorCan(db, { guildId: command.guildId, roleIds: command.roleIds, capability: "economy_operations" })) === "allowed";
     if (member !== command.userId && !staff) {
-      return { content: "You can read your own receipts." };
+      return { content: "You can read your own Marks receipts. Another member's history needs the economy operations role." };
     }
     const receipts = await listReceipts(db, { guildId: command.guildId, userId: member, audience: staff ? "staff" : "member" });
     if (receipts.length === 0) {
-      return { content: "No Marks receipts yet." };
+      return { content: "No Marks receipts yet. Transfers, awards, and staff adjustments will show up here." };
     }
     return {
       content: receipts
@@ -75,9 +75,12 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
       now: command.now,
     });
     if (moved.result === "transferred") {
-      return { content: `Transferred ${moved.amount} Marks. This is not new issuance.` };
+      return { content: `Sent ${moved.amount} Marks. This moved Marks that already existed. It did not mint new ones.` };
     }
-    return { content: `Transfer was not completed: ${moved.result}.` };
+    if (moved.result === "insufficient") {
+      return { content: "You do not have enough available Marks for that transfer. Nothing was moved." };
+    }
+    return { content: `The transfer did not go through (${moved.result}). Nothing was moved.` };
   }
   if (command.subcommand === "adjust") {
     const action = text(command, "action");
@@ -99,9 +102,13 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
         now: command.now,
       });
       if (granted.result === "denied") {
-        return { content: "You cannot adjust wallets. Nothing was written." };
+        return { content: adjustmentSentence("denied", action, amount) };
       }
-      return { content: `Bulk grant ${granted.grants.map((grant) => `${grant.userId} ${grant.result}`).join(", ")}.` };
+      return {
+        content: granted.grants
+          .map((grant) => `<@${grant.userId}>: ${adjustmentSentence(grant.result, "add", amount)}`)
+          .join("\n"),
+      };
     }
     const adjusted = await adjustMarks(db, {
       guildId: command.guildId,
@@ -114,10 +121,7 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
       idempotencyKey: key,
       now: command.now,
     });
-    if (adjusted.result === "denied") {
-      return { content: "You cannot adjust wallets. Nothing was written." };
-    }
-    return { content: `Adjustment ${adjusted.result}.` };
+    return { content: adjustmentSentence(adjusted.result, action, amount) };
   }
   return { content: "That economy action is not available." };
 }
@@ -144,6 +148,40 @@ export async function runStatsCommand(db: PrismaClient, command: EconomyCommand)
     return { content: "You cannot view statistics." };
   }
   return { content: reportText(stats.report) };
+}
+
+function adjustmentSentence(result: string, action: string, amount: number): string {
+  if (result === "denied") {
+    return "Your Discord roles are not allowed to adjust Marks. Nothing was written. The server owner can grant Economy operations to a role from the admin dashboard.";
+  }
+  if (result === "maintenance") {
+    return "The economy is in maintenance. Nothing was written.";
+  }
+  if (result === "invalid") {
+    return "That amount is not a valid Marks total. Nothing was written.";
+  }
+  if (result === "insufficient") {
+    return "That member does not have enough Marks. Nothing was written.";
+  }
+  if (result === "capped") {
+    return "That adjustment would pass the routine Marks budget. Nothing was written.";
+  }
+  if (result === "unfunded") {
+    return "That award is not funded. Nothing was written.";
+  }
+  if (result === "already_recorded") {
+    return "That adjustment was already recorded. The wallet was not changed again.";
+  }
+  if (result === "posted" || result === "adjusted") {
+    if (action === "remove") {
+      return `Removed ${amount} Marks. The reason is stored on the staff receipt.`;
+    }
+    if (action === "set") {
+      return `Set the available balance from ${amount} Marks. The reason is stored on the staff receipt.`;
+    }
+    return `Added ${amount} Marks. The reason is stored on the staff receipt.`;
+  }
+  return `The adjustment did not finish (${result}). Check the wallet before trying again.`;
 }
 
 function reportText(report: { marksIssued: string; marksReversed: string; marksSpent: string; transferCount: number; escrow: string; wallets: number }): string {

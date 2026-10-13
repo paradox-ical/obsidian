@@ -35,7 +35,7 @@ The admin page says access is closed. The bot is running, and Discord is not con
 In the [Discord Developer Portal](https://discord.com/developers/applications), open the bot application and do three things:
 
 1. Copy the bot token, the application id, and the OAuth2 client secret.
-2. Add this redirect URL: `http://localhost:5173/auth/discord/callback`
+2. Add the redirect URL shown on the admin page. On this PC that is `http://localhost:5173/auth/discord/callback`. On another machine, set `ADMIN_ORIGIN` in `.env` to the exact address you open in the browser, such as `http://YOUR_SERVER:5173`, then use `ADMIN_ORIGIN/auth/discord/callback`.
 3. Use the OAuth2 URL Generator with the `bot` and `applications.commands` scopes, open that invite link, and add the bot to your test server. Copy that server’s guild id.
 
 Edit `.env` in the project folder. Fill only these four lines, and leave `DISCORD_PRODUCTION_GUILD_ID` empty:
