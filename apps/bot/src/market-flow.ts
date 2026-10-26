@@ -51,13 +51,21 @@ export async function runMarketCommand(db: PrismaClient, command: MarketCommand)
   }
   if (command.subcommand === "pool") {
     const pool = await readMarketDiagnostics(db, command.guildId);
-    return { content: `Inventory ${pool.inventory} of the active 2,500. Protected reserve ${pool.protected}. Next buy ${pool.nextBuy ?? "unavailable"}. No price ceiling.` };
+    return {
+      content: [
+        `**Inventory** ${pool.inventory} of the active 2,500`,
+        `**Protected reserve** ${pool.protected}`,
+        `**Next buy** ${pool.nextBuy ?? "unavailable"}`,
+        "",
+        "-# There is no price ceiling.",
+      ].join("\n"),
+    };
   }
   const side = command.subcommand === "buy" || command.subcommand === "sell" ? command.subcommand : command.options["side"];
   if (command.subcommand === "quote" || command.subcommand === "buy" || command.subcommand === "sell") {
     const amount = whole(command, "amount");
     if ((side !== "buy" && side !== "sell") || amount === null) {
-      return { content: "Choose buy or sell and a whole number of Ingots." };
+      return { content: "Pick buy or sell, and a whole number of Ingots." };
     }
     const quoted = await quoteMarket(db, {
       guildId: command.guildId,
@@ -71,7 +79,15 @@ export async function runMarketCommand(db: PrismaClient, command: MarketCommand)
       return { content: quoted.result === "depleted" ? "The exchange inventory is empty. Buys are unavailable." : `No quote: ${quoted.result}.` };
     }
     return {
-      content: `${quoted.side} ${quoted.quantity} Ingot(s) for ${quoted.total} Marks. Inventory would become ${quoted.inventoryAfter}. Spread ${quoted.spread}. Expires ${quoted.expiresAt}. There is no price ceiling.`,
+      content: [
+        `**${quoted.side === "buy" ? "Buy" : "Sell"}** ${quoted.quantity} Ingots`,
+        `**${quoted.total}** Marks`,
+        `Inventory would become ${quoted.inventoryAfter}`,
+        `Spread ${quoted.spread}`,
+        `The price holds until ${quoted.expiresAt}`,
+        "",
+        "-# There is no price ceiling. Nothing has moved yet.",
+      ].join("\n"),
       components: [{
         type: 1,
         components: [{ type: 2, style: 1, custom_id: `market:confirm:${quoted.quoteId}`, label: "Confirm" }],

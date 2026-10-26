@@ -20,6 +20,7 @@ export {
   grantDashboardAccess,
   listDeadJobs,
   moduleIsAvailable,
+  openModulesForTesting,
   openSession,
   PlatformError,
   publishDraft,

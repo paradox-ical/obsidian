@@ -42,7 +42,7 @@ export function presentOutcome(input: {
   }
   inner.push(
     { type: ComponentType.Separator, divider: false, spacing: SeparatorSpacingSize.Small },
-    { type: ComponentType.TextDisplay, content: "-# The Collective" },
+    { type: ComponentType.TextDisplay, content: "-# The Collective · keep the receipt" },
   );
   const container: APIContainerComponent = {
     type: ComponentType.Container,

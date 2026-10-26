@@ -87,7 +87,19 @@ export async function runDeadDropCommand(
       now: input.now,
     });
     if (quoted.result === "quoted") {
-      return { content: `Quote ${quoted.quoteId}. ${quoted.coordinate}. Price ${quoted.price}. Share ${quoted.share}. Treasury ${quoted.treasury}. Jackpot ${quoted.jackpot}. Picks left ${quoted.picksLeft}. Opens ${quoted.opensAt}. Closes ${quoted.closesAt}. ${quoted.rules} Nothing was charged. The notice is not posted.` };
+      return {
+        content: [
+          `**${quoted.coordinate}**`,
+          `**Price** ${quoted.price}`,
+          `Share ${quoted.share} · Treasury ${quoted.treasury}`,
+          `Jackpot ${quoted.jackpot} · Picks left ${quoted.picksLeft}`,
+          `Opens ${quoted.opensAt}`,
+          `Closes ${quoted.closesAt}`,
+          quoted.rules,
+          "",
+          `-# Quote ${quoted.quoteId}. Nothing was charged. The notice is not posted.`,
+        ].join("\n"),
+      };
     }
     if (quoted.result === "schedule_required") {
       return { content: "The opening hour is not selected. Nothing was charged. The notice is not posted." };
@@ -103,7 +115,7 @@ export async function runDeadDropCommand(
       return { content: "Dead Drop is not open. The notice is not posted." };
     }
     const lines = history.boards.map((board) => `${board.boardId} ${board.status} jackpot ${board.jackpot}`);
-    return { content: `${lines.join(" ") || "No closed boards."} The notice is not posted.` };
+    return { content: `${lines.join("\n") || "No closed boards yet."}\n\n-# The notice is not posted.` };
   }
   const current = await readBoard(db, { guildId: input.guildId, userId: input.userId });
   if (current.result === "schedule_required") {
@@ -115,5 +127,17 @@ export async function runDeadDropCommand(
   if (current.result !== "ready") {
     return { content: "Dead Drop is not open. Nothing was charged. The notice is not posted." };
   }
-  return { content: `${current.grid}\nJackpot ${current.jackpot}. Picks left ${current.picksLeft}. Opens ${current.opensAt}. Closes ${current.closesAt}. ${current.rules} The notice is not posted.` };
+  return {
+    content: [
+      current.grid,
+      "",
+      `**Jackpot** ${current.jackpot}`,
+      `**Picks left** ${current.picksLeft}`,
+      `Opens ${current.opensAt}`,
+      `Closes ${current.closesAt}`,
+      current.rules,
+      "",
+      "-# The notice is not posted.",
+    ].join("\n"),
+  };
 }

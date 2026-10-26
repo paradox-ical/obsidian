@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { COMMAND_CHOICES } from "./command-choices.js";
 import {
   COMMAND_PARENTS,
   DISCORD_GLOBAL_CHAT_INPUT_LIMIT,
@@ -8,6 +9,7 @@ import {
   assertParentCommandBudget,
   decideRegistration,
   testGuildCommandsUrl,
+  toDiscordCommandBody,
   validateCommandManifest,
 } from "./commands.js";
 
@@ -88,6 +90,33 @@ describe("command parent budget", () => {
       },
     ];
     expect(validateCommandManifest(broken).join(" ")).toMatch(/1-25/);
+  });
+
+  it("offers a picker for every closed list and keeps free text typed", () => {
+    expect(validateCommandManifest()).toEqual([]);
+    const option = (parentName: string, subcommandName: string, optionName: string) => {
+      const body = toDiscordCommandBody(COMMAND_PARENTS.find((parent) => parent.name === parentName)!);
+      const subcommand = body.options.find((entry) => entry.name === subcommandName);
+      const parameters = subcommand?.options as Array<{ name: string; choices?: Array<{ name: string; value: string | number }> }>;
+      return parameters.find((entry) => entry.name === optionName);
+    };
+    expect(option("economy", "adjust", "action")?.choices?.map((choice) => choice.value)).toEqual(["add", "remove", "set", "bulk"]);
+    expect(option("character", "class", "class")?.choices?.map((choice) => choice.value)).toEqual([
+      "hitman",
+      "bruiser",
+      "saboteur",
+      "fixer",
+      "duelist",
+      "gunslinger",
+    ]);
+    expect(option("character", "loadout", "slot")?.choices?.map((choice) => choice.value)).toEqual([1, 2, 3, 4]);
+    expect(option("economy", "adjust", "reason")?.choices).toBeUndefined();
+    expect(option("deaddrop", "pick", "coordinate")?.choices).toBeUndefined();
+    for (const key of Object.keys(COMMAND_CHOICES)) {
+      const [parentName, subcommandName, optionName] = key.split(".");
+      const choices = option(parentName ?? "", subcommandName ?? "", optionName ?? "")?.choices;
+      expect(choices?.map((choice) => choice.value), key).toEqual(COMMAND_CHOICES[key]?.map((choice) => choice.value));
+    }
   });
 
   it("keeps registration on a dry run unless the test guild is named", () => {

@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createPrismaClient } from "@collective/db";
+import { createPrismaClient, openModulesForTesting } from "@collective/db";
 import { loadEnv, oauthReadiness } from "@collective/domain";
 import { config as loadDotenv } from "dotenv";
 
@@ -20,6 +20,7 @@ const port = env.adminPort;
 const host = process.env["ADMIN_HOST"]?.trim() || "0.0.0.0";
 const staticRoot = fileURLToPath(new URL("../dist", import.meta.url));
 const prisma = createPrismaClient(env.databaseUrl);
+void openModulesForTesting(prisma).catch(() => undefined);
 const redirectUri = `${env.adminOrigin}/auth/discord/callback`;
 const directory =
   oauthReadiness(env) === "oauth_ready" && env.discord.token && env.discord.applicationId && env.discord.clientSecret

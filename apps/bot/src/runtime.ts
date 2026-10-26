@@ -7,6 +7,7 @@ import {
   expireDueGrant,
   panelPostForMessage,
   readCommunitySettings,
+  openModulesForTesting,
   readFoundationRevision,
   routeInteraction,
   runJobOnce,
@@ -102,7 +103,8 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
   try {
     foundationRevision = await readFoundationRevision(prisma);
     database = "ok";
-    logger.info({ foundationRevision }, "database foundation revision verified");
+    const opened = await openModulesForTesting(prisma);
+    logger.info({ foundationRevision, modulesOpened: opened, ownerStaff: env.ownerStaff }, "database foundation revision verified");
   } catch (error) {
     const message = scrubSecrets(error instanceof Error ? error.message : "database unavailable", [
       env.databaseUrl,

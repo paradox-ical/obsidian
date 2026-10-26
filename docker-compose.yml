@@ -30,6 +30,7 @@ services:
       WORKER_HEALTH_PORT: "8082"
       ADMIN_PORT: "5173"
       ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:5173}
+      DASHBOARD_OWNER_STAFF: ${DASHBOARD_OWNER_STAFF:-true}
       DISCORD_TOKEN: ${DISCORD_TOKEN:-}
       DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:-}
       DISCORD_TEST_GUILD_ID: ${DISCORD_TEST_GUILD_ID:-}
@@ -68,6 +69,7 @@ services:
       WORKER_HEALTH_PORT: "8082"
       ADMIN_PORT: "5173"
       ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:5173}
+      DASHBOARD_OWNER_STAFF: ${DASHBOARD_OWNER_STAFF:-true}
     ports:
       - "8082:8082"
     depends_on:
@@ -98,6 +100,7 @@ services:
       ADMIN_HOST: 0.0.0.0
       DATABASE_URL: postgresql://collective:collective@postgres:5432/collective
       ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:5173}
+      DASHBOARD_OWNER_STAFF: ${DASHBOARD_OWNER_STAFF:-true}
       DISCORD_TOKEN: ${DISCORD_TOKEN:-}
       DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:-}
       DISCORD_TEST_GUILD_ID: ${DISCORD_TEST_GUILD_ID:-}

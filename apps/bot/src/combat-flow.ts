@@ -49,7 +49,7 @@ export async function runCombatCommand(
     if (started.result !== "ready") {
       return { content: "That test duel did not start." };
     }
-    return { content: `Tactical duel ${started.battleId} is open. Send strike, defend, ability, or item. A missed turn defends.` };
+    return { content: `The tactical duel is open.\n**${started.battleId}**\nPick a strike, a defence, an ability, or an item. A missed turn defends.` };
   }
   const started = await startQuickDuel(db, { guildId: input.guildId, userId: input.userId, opponentSlug: text(input.options, "opponent") || "training-dummy", idempotencyKey: `quick:${input.userId}:${input.now.toISOString()}`, now: input.now });
   if (started.result !== "ready") {

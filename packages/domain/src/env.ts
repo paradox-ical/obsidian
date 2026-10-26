@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { ownerActsAsStaff } from "./access.js";
 import { providerStatuses, type ProviderCredentialStatus } from "./community.js";
 import { DEFAULT_TIMEZONE } from "./foundation.js";
 
@@ -39,6 +40,7 @@ export interface AppEnv {
   workerHealthPort: number;
   adminPort: number;
   adminOrigin: string;
+  ownerStaff: boolean;
   discord: {
     configured: boolean;
     token?: string;
@@ -137,6 +139,7 @@ export function parseEnv(source: Record<string, string | undefined>): AppEnv {
     workerHealthPort: readPort(parsed.data.WORKER_HEALTH_PORT, 8082, "WORKER_HEALTH_PORT"),
     adminPort: readPort(parsed.data.ADMIN_PORT, 5173, "ADMIN_PORT"),
     adminOrigin: readOrigin(parsed.data.ADMIN_ORIGIN),
+    ownerStaff: ownerActsAsStaff({ ...source, NODE_ENV: parsed.data.NODE_ENV ?? source["NODE_ENV"] ?? "development" }),
     discord: {
       configured: Boolean(token && applicationId),
       ...(token ? { token } : {}),
@@ -168,6 +171,7 @@ export function publicEnvSummary(env: AppEnv): {
   oauthConfigured: boolean;
   providersReady: number;
   providersSetupRequired: number;
+  ownerStaff: boolean;
 } {
   return {
     nodeEnv: env.nodeEnv,
@@ -181,5 +185,6 @@ export function publicEnvSummary(env: AppEnv): {
     oauthConfigured: Boolean(env.discord.token && env.discord.applicationId && env.discord.clientSecret),
     providersReady: env.providers.filter((provider) => provider.status === "ready").length,
     providersSetupRequired: env.providers.filter((provider) => provider.status === "setup_required").length,
+    ownerStaff: env.ownerStaff,
   };
 }

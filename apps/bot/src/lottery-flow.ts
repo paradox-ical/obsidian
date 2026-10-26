@@ -57,7 +57,20 @@ export async function runLotteryCommand(
       now: input.now,
     });
     if (quoted.result === "quoted") {
-      return { content: `Quote ${quoted.quoteId}. Entries ${quoted.entries}. Tickets ${quoted.tickets}. Odds ${quoted.oddsBasisPoints} of 10000. Contribution ${quoted.contribution}. Bonus ${quoted.subsidy}. Deadline ${quoted.deadline}. Stall ${quoted.stallAt}. Budget remaining ${quoted.budgetRemaining}. ${quoted.rules} Nothing was charged. The notice is not posted.` };
+      return {
+        content: [
+          `**Quote** ${quoted.quoteId}`,
+          `**Entries** ${quoted.entries} · **Tickets** ${quoted.tickets}`,
+          `**Odds** ${quoted.oddsBasisPoints} of 10000`,
+          `**Contribution** ${quoted.contribution} · **Bonus** ${quoted.subsidy}`,
+          `Deadline ${quoted.deadline}`,
+          `Stall ${quoted.stallAt}`,
+          `Budget remaining ${quoted.budgetRemaining}`,
+          quoted.rules,
+          "",
+          "-# Nothing was charged. The notice is not posted.",
+        ].join("\n"),
+      };
     }
     if (quoted.result === "unfunded" && "subsidy" in quoted) {
       return { content: `The bonus ${quoted.subsidy} is not reserved. Budget remaining ${quoted.budgetRemaining}. Deadline ${quoted.deadline}. Stall ${quoted.stallAt}. Nothing was charged.` };
@@ -74,5 +87,19 @@ export async function runLotteryCommand(
   if (current.result !== "ready") {
     return { content: "The lottery is not open." };
   }
-  return { content: `Entries ${current.entries}. Tickets ${current.tickets}. Your tickets ${current.memberTickets}. Odds ${current.oddsBasisPoints} of 10000. Pot ${current.pot}. Bonus ${current.bonus}. Deadline ${current.deadline}. Stall ${current.stallAt}. Budget remaining ${current.budgetRemaining}. ${current.rules} The notice is not posted.` };
+  return {
+    content: [
+      `**Entries** ${current.entries}`,
+      `**Tickets in the draw** ${current.tickets}`,
+      `**Yours** ${current.memberTickets}`,
+      `**Odds** ${current.oddsBasisPoints} of 10000`,
+      `**Pot** ${current.pot} · **Bonus** ${current.bonus}`,
+      `Deadline ${current.deadline}`,
+      `Stall ${current.stallAt}`,
+      `Budget remaining ${current.budgetRemaining}`,
+      current.rules,
+      "",
+      "-# The notice is not posted.",
+    ].join("\n"),
+  };
 }

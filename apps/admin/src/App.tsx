@@ -31,6 +31,7 @@ interface AuthStatus {
   reason?: string;
   csrfToken?: string;
   redirectUri?: string;
+  ownerStaff?: boolean;
 }
 
 const SIGN_IN_REASONS: Record<string, string> = {
@@ -228,6 +229,7 @@ function AccessClosed() {
           {signInMessage ? <p>{signInMessage}</p> : null}
           {auth?.redirectUri ? <p>Discord redirect: {auth.redirectUri}</p> : null}
           {originMismatch ? <p>This page is {browserOrigin}. Sign-in is set to {redirectOrigin}. Set ADMIN_ORIGIN to this page's address and restart admin.</p> : null}
+          {auth?.ownerStaff ? <p>Testing mode is on. The server owner can use every staff action, and paused modules are opened when the bot or admin starts. Other members still need a role grant. Provider keys, prize keys, and Discord delivery stay closed until those credentials exist.</p> : null}
           {auth?.oauth === "oauth_ready" && !auth.authenticated ? <p><a href="/auth/discord">Continue with Discord</a></p> : null}
           {auth?.authenticated && auth.csrfToken ? (
             <button

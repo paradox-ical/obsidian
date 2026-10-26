@@ -51,11 +51,11 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
   if (command.subcommand === "history") {
     const staff = (await actorCan(db, { guildId: command.guildId, roleIds: command.roleIds, capability: "economy_operations" })) === "allowed";
     if (member !== command.userId && !staff) {
-      return { content: "You can read your own Marks receipts. Another member's history needs the economy operations role." };
+      return { content: "Your own receipts are open. Another member's history needs the economy operations role." };
     }
     const receipts = await listReceipts(db, { guildId: command.guildId, userId: member, audience: staff ? "staff" : "member" });
     if (receipts.length === 0) {
-      return { content: "No Marks receipts yet. Transfers, awards, and staff adjustments will show up here." };
+      return { content: "The receipt book is empty. Transfers, awards, and staff adjustments will show up here." };
     }
     return {
       content: receipts
@@ -77,10 +77,10 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
       now: command.now,
     });
     if (moved.result === "transferred") {
-      return { content: `Sent ${moved.amount} Marks. This moved Marks that already existed. It did not mint new ones.` };
+      return { content: `**${moved.amount}** Marks changed hands.\n\n-# This moved Marks that already existed. Nothing new was minted.` };
     }
     if (moved.result === "insufficient") {
-      return { content: "You do not have enough available Marks for that transfer. Nothing was moved." };
+      return { content: "The pocket does not cover that transfer. Nothing was moved." };
     }
     return { content: `The transfer did not go through (${moved.result}). Nothing was moved.` };
   }
@@ -89,7 +89,7 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
     const amount = whole(command, "amount");
     const reason = text(command, "reason");
     if ((action !== "add" && action !== "remove" && action !== "set" && action !== "bulk") || amount === null || !reason.trim()) {
-      return { content: "Adjust needs add, remove, set, or bulk, a whole amount, and a reason." };
+      return { content: "Pick how the Marks should move, name a whole amount, and leave a reason." };
     }
     const key = `adjust:${command.interactionId ?? randomUUID()}`;
     if (action === "bulk") {
@@ -187,5 +187,12 @@ function adjustmentSentence(result: string, action: string, amount: number): str
 }
 
 function reportText(report: { marksIssued: string; marksReversed: string; marksSpent: string; transferCount: number; escrow: string; wallets: number }): string {
-  return `Issued ${report.marksIssued}, reversed ${report.marksReversed}, spent ${report.marksSpent}, transfers ${report.transferCount}, escrow ${report.escrow}, wallets ${report.wallets}.`;
+  return [
+    `**Issued** ${report.marksIssued}`,
+    `**Reversed** ${report.marksReversed}`,
+    `**Spent** ${report.marksSpent}`,
+    `**Transfers** ${report.transferCount}`,
+    `**Escrow** ${report.escrow}`,
+    `**Wallets** ${report.wallets}`,
+  ].join("\n");
 }

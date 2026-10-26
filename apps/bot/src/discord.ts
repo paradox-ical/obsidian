@@ -1,4 +1,5 @@
 import type { MessageReaction, PartialMessageReaction, PartialUser, User } from "discord.js";
+import { staffRoleIds } from "@collective/domain";
 
 import { outcomeHeading, presentOutcome } from "./present.js";
 import { scrubSecrets } from "./redact.js";
@@ -175,8 +176,11 @@ export async function startDiscordGateway(input: {
           await command.deferReply({ flags: visibleFlags });
         }
         const rawRoles = interaction.inGuild() && interaction.member ? interaction.member.roles : [];
-        const roleIds = Array.isArray(rawRoles) ? [...rawRoles] : [...rawRoles.cache.keys()];
         const guild = interaction.guild;
+        const roleIds = staffRoleIds(
+          Array.isArray(rawRoles) ? [...rawRoles] : [...rawRoles.cache.keys()],
+          Boolean(guild && interaction.user.id === guild.ownerId),
+        );
         const member = interaction.inGuild() ? interaction.member : null;
         const pending = member && "pending" in member && typeof member.pending === "boolean" ? member.pending : null;
         const flags =
@@ -324,7 +328,7 @@ export async function startDiscordGateway(input: {
           userId: user.id,
           emoji: reaction.emoji.name,
           added,
-          roleIds: [...member.roles.cache.keys()],
+          roleIds: staffRoleIds([...member.roles.cache.keys()], user.id === guild.ownerId),
           native: {
             pending: typeof member.pending === "boolean" ? member.pending : null,
             flags: Number(member.flags.bitfield),

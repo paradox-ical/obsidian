@@ -45,3 +45,5 @@ Run on 12 October 2026 from the workstation. Host Node.js is v22.14.0, which is 
 ## Next unfinished task
 
 No build prompt remains. The remaining work is the prerequisite list in `docs/ACCEPTANCE_REPORT.md`: Discord credentials, a named test guild before any command PUT, dashboard grants, channel and schedule choices, provider keys, funding, a backup passphrase, and a hosting destination. Do not execute the production rollout or rollback checklist without a separate instruction. No default Dead Drop hour or lottery draw time has been chosen.
+
+Development now treats the guild owner as staff when `DASHBOARD_OWNER_STAFF` is on (the Compose default). Other members still need a role grant. Provider keys, prize keys, and Discord delivery stay setup-required without credentials. Set the variable to `false` before a shared host.

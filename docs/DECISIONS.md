@@ -347,6 +347,13 @@ Verification, accounts, statistics, dashboard access, publishing, recurrence, ec
 | No schema change | The acceptance audit added a rejoin assertion to the existing community integration test. Foundation revision stays `0x`. |
 | Prisma 7.10.0 stays pinned | `npm audit` offers Prisma 6.19.3 as the fix for transitive `deepmerge-ts` and `mysql2` findings. That downgrade contradicts the Prisma 7 pin. This project uses PostgreSQL. |
 
+## Testing access
+
+| Choice | Why |
+|---|---|
+| Guild owner is staff while `DASHBOARD_OWNER_STAFF` is on | Development turns this on so the server owner can exercise every staff action without first granting a Discord role. The marker is `collective-owner`, which is not a Discord role id. Other members still need a capability grant. `NODE_ENV=test` and `NODE_ENV=production` leave it off unless the variable is exactly `true`. Set it to `false` on a shared host. |
+| Testing mode opens paused modules | Bot and admin startup clear `feature_flag.maintenance` while the switch is on. Verification and moderation were already exempt. This does not invent provider keys, prize keys, or a Discord token. |
+
 ## Not chosen
 
 - No production Discord IDs, tokens, or provider credentials were invented.

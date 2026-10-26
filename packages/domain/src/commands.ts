@@ -1,3 +1,5 @@
+import { commandChoices, type CommandChoice } from "./command-choices.js";
+
 /**
  * Discord limits verified 7 October 2026 from
  * https://docs.discord.com/developers/interactions/application-commands
@@ -21,6 +23,7 @@ export interface CommandParameter {
   description: string;
   type: ParameterType;
   required: boolean;
+  choices?: readonly CommandChoice[];
 }
 
 export interface Subcommand {
@@ -36,6 +39,25 @@ export interface ParentCommandPlan {
   options: Subcommand[];
 }
 
+const PANEL_LINES: Record<string, string> = {
+  search: "Look up what a module does",
+  actions: "See what you can do from here",
+  wizard: "Walk the setup",
+  diagnostics: "See what is still missing",
+  mappings: "Point the channels and roles",
+  embed: "Draft an embed",
+  review: "Send a draft for review",
+  announce: "Post an announcement",
+  pin: "Pin a message",
+  sticky: "Hold a message in place",
+  rules: "Write a rule that answers for you",
+  test: "Try a rule before it fires",
+  achievements: "Read the achievement book",
+  commendations: "Leave a commendation",
+  updates: "Post a game update",
+  manage: "Staff the community desk",
+};
+
 function command(name: string, summary: string, actions: Array<string | Subcommand>): ParentCommandPlan {
   return {
     name,
@@ -43,7 +65,7 @@ function command(name: string, summary: string, actions: Array<string | Subcomma
     description: summary.length <= 100 ? summary : `${summary.slice(0, 97)}...`,
     options: actions.map((action) =>
       typeof action === "string"
-        ? { name: action, description: `Open the ${action.replaceAll("_", " ")} panel`, options: [] }
+        ? { name: action, description: PANEL_LINES[action] ?? `Open ${action.replaceAll("_", " ")}`, options: [] }
         : action,
     ),
   };
@@ -54,9 +76,9 @@ function command(name: string, summary: string, actions: Array<string | Subcomma
  * until the explicit test-guild tool is run.
  */
 export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
-  command("help", "Searchable module help and personal available actions", ["search", "actions"]),
-  command("setup", "Admin wizard, diagnostics, and channel or role mappings", ["wizard", "diagnostics", "mappings"]),
-  command("verify", "CAPTCHA and assistance", [
+  command("help", "Ask what a module does, or what you can do", ["search", "actions"]),
+  command("setup", "Walk setup, or see what is still missing", ["wizard", "diagnostics", "mappings"]),
+  command("verify", "Prove you are here, or ask for help", [
     {
       name: "captcha",
       description: "Start or answer the in-Discord CAPTCHA",
@@ -77,7 +99,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("roles", "Onboarding-related and extra opt-in panels", [
+  command("roles", "Take a role the street offers", [
     {
       name: "panel",
       description: "Show role panels",
@@ -92,13 +114,13 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("accounts", "Link, inspect, privacy, and unlink", [
+  command("accounts", "Claim a handle, or take it back", [
     {
       name: "link",
       description: "Save a self-reported handle",
       options: [
-        { name: "provider", description: "Account provider", type: "string", required: true },
-        { name: "handle", description: "Handle you claim", type: "string", required: true },
+        { name: "provider", description: "Where the handle lives", type: "string", required: true },
+        { name: "handle", description: "The name you answer to there", type: "string", required: true },
       ],
     },
     { name: "inspect", description: "Show your linked accounts", options: [] },
@@ -106,17 +128,17 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "privacy",
       description: "Set account visibility",
       options: [
-        { name: "provider", description: "Account provider", type: "string", required: true },
-        { name: "visibility", description: "public or private", type: "string", required: true },
+        { name: "provider", description: "Where the handle lives", type: "string", required: true },
+        { name: "visibility", description: "Who can see this handle", type: "string", required: true },
       ],
     },
     {
       name: "unlink",
       description: "Remove one linked account",
-      options: [{ name: "provider", description: "Account provider", type: "string", required: true }],
+      options: [{ name: "provider", description: "Where the handle lives", type: "string", required: true }],
     },
   ]),
-  command("temproles", "Staff grants, renewals, and expiry", [
+  command("temproles", "Lend a role, and say when it ends", [
     {
       name: "grant",
       description: "Grant a temporary role",
@@ -148,24 +170,24 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("invites", "Own recruitment progress and staff attribution controls", [
+  command("invites", "See who you brought in", [
     { name: "progress", description: "Show your qualified recruitment count", options: [] },
     {
       name: "attribution",
       description: "Correct an invite attribution",
       options: [
         { name: "member", description: "Recruited member", type: "user", required: true },
-        { name: "confidence", description: "known, unknown, vanity, or ambiguous", type: "string", required: true },
+        { name: "confidence", description: "How sure the recruit link is", type: "string", required: true },
         { name: "reason", description: "Audit reason", type: "string", required: true },
       ],
     },
   ]),
-  command("birthday", "Set date, privacy, and reminders", [
+  command("birthday", "Leave a birthday, if you want one", [
     {
       name: "set",
       description: "Save an opt-in birthday",
       options: [
-        { name: "month", description: "Month number", type: "integer", required: true },
+        { name: "month", description: "The month they were born", type: "integer", required: true },
         { name: "day", description: "Day of the month", type: "integer", required: true },
         { name: "year", description: "Optional year", type: "integer", required: false },
         { name: "timezone", description: "IANA timezone", type: "string", required: false },
@@ -180,13 +202,13 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     { name: "reminders", description: "Show the annual gift status", options: [] },
     { name: "remove", description: "Delete stored birthday data", options: [] },
   ]),
-  command("mod", "Sanctions, warnings, cases, and appeals administration", [
+  command("mod", "Open a case, or answer an appeal", [
     {
       name: "sanctions",
       description: "Apply a manual sanction",
       options: [
         { name: "member", description: "Member to review", type: "user", required: true },
-        { name: "action", description: "warn, timeout, kick, ban, or note", type: "string", required: true },
+        { name: "action", description: "What the case should do", type: "string", required: true },
         { name: "reason", description: "Audit reason", type: "string", required: true },
         { name: "points", description: "Warning points", type: "integer", required: false },
         { name: "days", description: "Days until expiry", type: "integer", required: false },
@@ -217,7 +239,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("report", "Private member report", [
+  command("report", "Tell staff, quietly", [
     {
       name: "submit",
       description: "Send a private report to staff",
@@ -227,7 +249,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("logs", "Staff search, export, and settings", [
+  command("logs", "Search the staff book", [
     {
       name: "search",
       description: "Search staff logs",
@@ -240,7 +262,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     { name: "settings", description: "Show log retention", options: [] },
   ]),
-  command("stats", "Staff-only reporting", [
+  command("stats", "The till, for staff eyes", [
     { name: "report", description: "Show economy issuance and sinks", options: [] },
     {
       name: "export",
@@ -248,10 +270,10 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       options: [{ name: "reason", description: "Audit reason", type: "string", required: true }],
     },
   ]),
-  command("rank", "Community XP and rank", [
+  command("rank", "Your standing in the community", [
     { name: "profile", description: "Show community level and the public wallet", options: [] },
   ]),
-  command("economy", "Wallet, transfers, ledger history, and staff adjustments", [
+  command("economy", "The pocket, the transfer, and the till", [
     {
       name: "wallet",
       description: "Show a public Marks balance",
@@ -272,23 +294,23 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "adjust",
-      description: "Staff add, remove, set, or bulk grant",
+      description: "Staff hands on the till",
       options: [
-        { name: "action", description: "add, remove, set, or bulk", type: "string", required: true },
+        { name: "action", description: "How the Marks should move", type: "string", required: true },
         { name: "member", description: "Member to adjust", type: "user", required: true },
         { name: "amount", description: "Whole Marks", type: "integer", required: true },
         { name: "reason", description: "Audit reason", type: "string", required: true },
       ],
     },
   ]),
-  command("market", "Ingot chart, pool, quote, buy, and sell", [
+  command("market", "The Ingot exchange", [
     { name: "chart", description: "Show recent Ingot exchange prices", options: [] },
     { name: "pool", description: "Show inventory and the next unit price", options: [] },
     {
       name: "quote",
       description: "Price a buy or sell",
       options: [
-        { name: "side", description: "buy or sell", type: "string", required: true },
+        { name: "side", description: "Buy from the pool, or sell into it", type: "string", required: true },
         { name: "amount", description: "Whole Ingots", type: "integer", required: true },
       ],
     },
@@ -303,12 +325,12 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       options: [{ name: "amount", description: "Whole Ingots", type: "integer", required: true }],
     },
   ]),
-  command("leaderboard", "Member-facing rankings and season archive", [
+  command("leaderboard", "The boards, and the seasons already closed", [
     {
       name: "rankings",
       description: "Show a public leaderboard page",
       options: [
-        { name: "category", description: "Ranking category", type: "string", required: false },
+        { name: "category", description: "Which board to read", type: "string", required: false },
         { name: "page", description: "Page number", type: "integer", required: false },
       ],
     },
@@ -317,20 +339,20 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       description: "Show an archived season",
       options: [
         { name: "season", description: "Season id", type: "string", required: false },
-        { name: "category", description: "Ranking category", type: "string", required: false },
+        { name: "category", description: "Which board to read", type: "string", required: false },
       ],
     },
   ]),
-  command("events", "Official event management and RSVP", [
+  command("events", "Official nights, and whether you are coming", [
     {
       name: "manage",
-      description: "Create, edit, cancel, transfer, check in, or recap an official event",
+      description: "Run the night, or write what happened",
       options: [
-        { name: "action", description: "create, edit, cancel, transfer, checkin, attendance, or recap", type: "string", required: true },
+        { name: "action", description: "What to do with the event", type: "string", required: true },
         { name: "name", description: "Event name", type: "string", required: false },
         { name: "occurrence", description: "Occurrence id", type: "string", required: false },
         { name: "host", description: "Host user id", type: "string", required: false },
-        { name: "scope", description: "occurrence or series", type: "string", required: false },
+        { name: "scope", description: "This night, or the whole run", type: "string", required: false },
         { name: "when", description: "ISO start time for a one-off event", type: "string", required: false },
         { name: "recap", description: "Recap text", type: "string", required: false },
         { name: "member", description: "Member user id", type: "string", required: false },
@@ -338,31 +360,31 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "rsvp",
-      description: "RSVP yes, maybe, or no",
+      description: "Say whether you are coming",
       options: [
         { name: "occurrence", description: "Occurrence id", type: "string", required: true },
-        { name: "response", description: "yes, maybe, or no", type: "string", required: true },
+        { name: "response", description: "Are you coming", type: "string", required: true },
       ],
     },
   ]),
-  command("schedule", "Event schedule and authorised scheduling controls", [
+  command("schedule", "What is coming, and what is attached", [
     { name: "view", description: "Show the upcoming official schedule", options: [] },
     {
       name: "control",
       description: "Link an announcement or temporary room without a second job",
       options: [
-        { name: "action", description: "link-room or link-announcement", type: "string", required: true },
+        { name: "action", description: "What to attach to the event", type: "string", required: true },
         { name: "occurrence", description: "Occurrence id", type: "string", required: true },
         { name: "target", description: "Announcement series id", type: "string", required: false },
       ],
     },
   ]),
-  command("crew", "Persistent crews, sessions, and LFG", [
+  command("crew", "Crews, tables, and who is looking", [
     {
       name: "persistent",
-      description: "Create a crew, appoint an officer, transfer, or disband",
+      description: "Found a crew, or change who runs it",
       options: [
-        { name: "action", description: "create, officer, transfer, disband, or mission", type: "string", required: true },
+        { name: "action", description: "What happens to the crew", type: "string", required: true },
         { name: "name", description: "Crew name", type: "string", required: false },
         { name: "crew", description: "Crew id", type: "string", required: false },
         { name: "member", description: "Member user id", type: "string", required: false },
@@ -370,9 +392,9 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "session",
-      description: "Open a session, join, approve, ready, attend, or request a room",
+      description: "Open a table, or take a seat",
       options: [
-        { name: "action", description: "create, join, approve, ready, attend, or room", type: "string", required: true },
+        { name: "action", description: "What happens to the session", type: "string", required: true },
         { name: "crew", description: "Persistent crew id", type: "string", required: false },
         { name: "session", description: "Session id", type: "string", required: false },
         { name: "name", description: "Session name", type: "string", required: false },
@@ -381,7 +403,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
         { name: "region", description: "Region", type: "string", required: false },
         { name: "when", description: "ISO start time", type: "string", required: false },
         { name: "size", description: "Session size", type: "integer", required: false },
-        { name: "mode", description: "open or approval", type: "string", required: false },
+        { name: "mode", description: "Who can walk in", type: "string", required: false },
         { name: "member", description: "Member user id", type: "string", required: false },
       ],
     },
@@ -389,17 +411,17 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "lfg",
       description: "List open sessions or join one",
       options: [
-        { name: "action", description: "list or join", type: "string", required: true },
+        { name: "action", description: "Look, or take a seat", type: "string", required: true },
         { name: "session", description: "Session id", type: "string", required: false },
       ],
     },
   ]),
-  command("prediction", "Free and staked predictions", [
+  command("prediction", "Calls with nothing on them, and calls with Marks", [
     {
       name: "free",
-      description: "Open, enter, lock, or resolve a free prediction",
+      description: "Call it, enter it, or settle it",
       options: [
-        { name: "action", description: "create, view, enter, confirm, lock, resolve, or cancel", type: "string", required: true },
+        { name: "action", description: "What to do with the call", type: "string", required: true },
         { name: "title", description: "Prediction title", type: "string", required: false },
         { name: "prediction", description: "Prediction id", type: "string", required: false },
         { name: "outcome", description: "Outcome id or label", type: "string", required: false },
@@ -412,9 +434,9 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "staked",
-      description: "Open, escrow, resolve, refund, or reverse a staked pool",
+      description: "Open the pool, or settle the stakes",
       options: [
-        { name: "action", description: "create, view, enter, confirm, resolve, cancel, or reverse", type: "string", required: true },
+        { name: "action", description: "What to do with the pool", type: "string", required: true },
         { name: "title", description: "Prediction title", type: "string", required: false },
         { name: "prediction", description: "Prediction id", type: "string", required: false },
         { name: "outcome", description: "Outcome id or label", type: "string", required: false },
@@ -426,14 +448,14 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("contest", "Submissions, ballots, and judging", [
+  command("contest", "Enter the work, cast a ballot, or judge", [
     {
       name: "submit",
       description: "Submit or edit an entry before the deadline",
       options: [
         { name: "contest", description: "Contest id", type: "string", required: true },
         { name: "title", description: "Entry title", type: "string", required: true },
-        { name: "media", description: "text, image, video, audio, or link", type: "string", required: true },
+        { name: "media", description: "What kind of entry this is", type: "string", required: true },
         { name: "body", description: "Submission body", type: "string", required: false },
       ],
     },
@@ -448,19 +470,19 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "judge",
-      description: "Create, publish, close, correct, or award a contest",
+      description: "Open the contest, or name a winner",
       options: [
-        { name: "action", description: "create, publish, close, correct, or award", type: "string", required: true },
+        { name: "action", description: "What to do with the contest", type: "string", required: true },
         { name: "title", description: "Contest title", type: "string", required: false },
         { name: "contest", description: "Contest id", type: "string", required: false },
-        { name: "mode", description: "vote or judge", type: "string", required: false },
+        { name: "mode", description: "How the winner is chosen", type: "string", required: false },
         { name: "entry", description: "Entry id", type: "string", required: false },
         { name: "reason", description: "Correction reason", type: "string", required: false },
         { name: "stock", description: "Prize stock id", type: "string", required: false },
       ],
     },
   ]),
-  command("giveaway", "Entry, bonuses, and staff draw controls", [
+  command("giveaway", "One free entry, then the draw", [
     {
       name: "enter",
       description: "Take the one free entry",
@@ -476,9 +498,9 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "draw",
-      description: "Close, draw, claim, disqualify, or reroll",
+      description: "Close the hat, or draw a name",
       options: [
-        { name: "action", description: "create, close, draw, claim, disqualify, reroll, or cancel", type: "string", required: true },
+        { name: "action", description: "What to do with the draw", type: "string", required: true },
         { name: "title", description: "Giveaway title", type: "string", required: false },
         { name: "giveaway", description: "Giveaway id", type: "string", required: false },
         { name: "reason", description: "Audit reason", type: "string", required: false },
@@ -487,14 +509,14 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
   ]),
-  command("publish", "Embeds, review, announcements, pins, and stickies", ["embed", "review", "announce", "pin", "sticky"]),
-  command("reply", "Authorised auto-reply rules and test", ["rules", "test"]),
-  command("lottery", "Tickets, current draw, and history", [
+  command("publish", "Drafts, announcements, pins, and stickies", ["embed", "review", "announce", "pin", "sticky"]),
+  command("reply", "Rules that answer for you", ["rules", "test"]),
+  command("lottery", "Tickets for the open draw", [
     {
       name: "tickets",
       description: "Quote or buy tickets for the open draw",
       options: [
-        { name: "action", description: "quote or buy", type: "string", required: true },
+        { name: "action", description: "Price it, or pay the quote", type: "string", required: true },
         { name: "quantity", description: "Number of tickets", type: "integer", required: false },
         { name: "quote", description: "Quote id to buy", type: "string", required: false },
       ],
@@ -502,8 +524,8 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     { name: "draw", description: "Show odds, bonus, deadline, and the stall refund", options: [] },
     { name: "history", description: "Show settled draws", options: [] },
   ]),
-  command("contracts", "Board, progress, reroll, settings, and staff custom contracts", [
-    { name: "board", description: "Show this cycle's contracts", options: [{ name: "cycle", description: "daily, weekly, or monthly", type: "string", required: false }] },
+  command("contracts", "The board, and the work on it", [
+    { name: "board", description: "Open today's board, or a longer cycle", options: [{ name: "cycle", description: "Which cycle to open", type: "string", required: false }] },
     { name: "progress", description: "Show progress, deadline, and rewards", options: [] },
     { name: "reroll", description: "Reroll one unstarted daily contract", options: [{ name: "assignment", description: "Assignment id", type: "string", required: true }] },
     {
@@ -511,7 +533,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       description: "Choose refresh notices and completion pings",
       options: [
         { name: "pings", description: "Mention completions in the channel", type: "boolean", required: false },
-        { name: "delivery", description: "dm or channel", type: "string", required: false },
+        { name: "delivery", description: "Where the notices land", type: "string", required: false },
         { name: "channel", description: "Channel for opted-in notices", type: "string", required: false },
         { name: "daily", description: "Daily refresh notice", type: "boolean", required: false },
         { name: "weekly", description: "Weekly refresh notice", type: "boolean", required: false },
@@ -520,93 +542,93 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "custom",
-      description: "Author, submit, or approve a contract",
+      description: "Write a contract, or sign off on one",
       options: [
-        { name: "action", description: "create, edit, assign, submit, approve, or reject", type: "string", required: true },
+        { name: "action", description: "What to do with the contract", type: "string", required: true },
         { name: "title", description: "Objective title", type: "string", required: false },
-        { name: "kind", description: "Objective kind", type: "string", required: false },
+        { name: "kind", description: "What the contract asks for", type: "string", required: false },
         { name: "objective", description: "Objective id", type: "string", required: false },
         { name: "assignment", description: "Assignment id", type: "string", required: false },
         { name: "answer", description: "Riddle answer or submission", type: "string", required: false },
         { name: "reason", description: "Audit reason", type: "string", required: false },
-        { name: "policy", description: "preserve or migrate", type: "string", required: false },
+        { name: "policy", description: "What happens to current progress", type: "string", required: false },
         { name: "target", description: "Progress target", type: "integer", required: false },
         { name: "reward", description: "Reward in Marks", type: "integer", required: false },
-        { name: "board", description: "daily, weekly, or monthly", type: "string", required: false },
+        { name: "board", description: "Which cycle it belongs to", type: "string", required: false },
       ],
     },
   ]),
-  command("combat", "Test duels, battle actions, and records", [
+  command("combat", "The floor, the queue, and the record", [
     {
       name: "queue",
       description: "Join or leave a casual or ranked queue",
       options: [
-        { name: "action", description: "join, leave, or accept", type: "string", required: true },
-        { name: "mode", description: "casual or ranked", type: "string", required: false },
+        { name: "action", description: "Step in, step out, or take the match", type: "string", required: true },
+        { name: "mode", description: "How the match is scored", type: "string", required: false },
         { name: "stake", description: "Equal Marks stake, or zero", type: "integer", required: false },
         { name: "match", description: "Match id for a casual proposal", type: "string", required: false },
       ],
     },
     {
       name: "challenge",
-      description: "Offer, accept, or cancel a direct match",
+      description: "Call someone out, or answer",
       options: [
-        { name: "action", description: "offer, accept, or cancel", type: "string", required: true },
+        { name: "action", description: "Offer the duel, or answer it", type: "string", required: true },
         { name: "member", description: "Opponent user id", type: "string", required: false },
-        { name: "mode", description: "casual or ranked", type: "string", required: false },
+        { name: "mode", description: "How the match is scored", type: "string", required: false },
         { name: "stake", description: "Equal Marks stake, or zero", type: "integer", required: false },
         { name: "match", description: "Match id", type: "string", required: false },
-        { name: "style", description: "quick or tactical", type: "string", required: false },
+        { name: "style", description: "How the fight is played", type: "string", required: false },
       ],
     },
     {
       name: "action",
       description: "Fight a test opponent",
       options: [
-        { name: "mode", description: "quick or tactical", type: "string", required: true },
-        { name: "opponent", description: "Test opponent slug", type: "string", required: false },
+        { name: "mode", description: "How the fight is played", type: "string", required: true },
+        { name: "opponent", description: "Who is waiting on the floor", type: "string", required: false },
         { name: "battle", description: "Battle id", type: "string", required: false },
-        { name: "move", description: "strike, defend, ability, or item", type: "string", required: false },
+        { name: "move", description: "What you do this turn", type: "string", required: false },
       ],
     },
     { name: "records", description: "Show a battle record", options: [{ name: "battle", description: "Battle id", type: "string", required: false }] },
   ]),
-  command("character", "Class, stats, abilities, respec, and loadouts", [
-    { name: "class", description: "Choose or inspect a class", options: [{ name: "class", description: "Class slug", type: "string", required: false }] },
+  command("character", "Pick a life, spend the points, and set the loadout", [
+    { name: "class", description: "Look over the six lives, or take one", options: [{ name: "class", description: "The life you take up", type: "string", required: false }] },
     {
       name: "stats",
       description: "Show or spend stat points",
       options: [
-        { name: "stat", description: "strength, agility, endurance, or focus", type: "string", required: false },
+        { name: "stat", description: "Where the points go", type: "string", required: false },
         { name: "points", description: "Points to allocate", type: "integer", required: false },
       ],
     },
     { name: "abilities", description: "Show abilities, cooldowns, and formulas", options: [] },
     {
       name: "respec",
-      description: "Respec, change class, or use the intro reset",
+      description: "Reset the points, or change the life",
       options: [
-        { name: "action", description: "respec, class, or intro", type: "string", required: true },
-        { name: "class", description: "Class slug", type: "string", required: false },
+        { name: "action", description: "Reset, change class, or use the intro", type: "string", required: true },
+        { name: "class", description: "The life you change into", type: "string", required: false },
       ],
     },
     {
       name: "loadout",
       description: "Equip up to four active abilities",
       options: [
-        { name: "slot", description: "Slot from 1 to 4", type: "integer", required: false },
-        { name: "ability", description: "Ability slug", type: "string", required: false },
+        { name: "slot", description: "Which of the four slots", type: "integer", required: false },
+        { name: "ability", description: "Which ability takes the slot", type: "string", required: false },
       ],
     },
   ]),
-  command("explore", "Expeditions, interactive missions, and crew missions", [
+  command("explore", "Jobs that take time, and jobs that branch", [
     {
       name: "expedition",
       description: "Preview or start one timed expedition",
       options: [
-        { name: "action", description: "preview, start, or report", type: "string", required: true },
-        { name: "region", description: "backstreets, black-docks, or inner-sanctum", type: "string", required: false },
-        { name: "difficulty", description: "routine, standard, or severe", type: "string", required: false },
+        { name: "action", description: "Look, leave, or read the report", type: "string", required: true },
+        { name: "region", description: "Where the job is", type: "string", required: false },
+        { name: "difficulty", description: "How hard the street is", type: "string", required: false },
         { name: "item", description: "Gear instance to reserve", type: "string", required: false },
         { name: "notify", description: "Store a completion report notice", type: "boolean", required: false },
       ],
@@ -615,21 +637,21 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "mission",
       description: "Play a branching mission",
       options: [
-        { name: "action", description: "preview, start, choose, check, or fight", type: "string", required: true },
+        { name: "action", description: "Look, start, choose, or fight", type: "string", required: true },
         { name: "choice", description: "Choice id", type: "string", required: false },
-        { name: "region", description: "backstreets or black-docks", type: "string", required: false },
+        { name: "region", description: "Where the job is", type: "string", required: false },
         { name: "item", description: "Gear instance to reserve", type: "string", required: false },
         { name: "notify", description: "Store a completion notice", type: "boolean", required: false },
       ],
     },
     { name: "crew", description: "Crew missions stay on the crew command", options: [] },
   ]),
-  command("inventory", "Gear, materials, crates, trade, crafting, salvage, and upgrades", [
+  command("inventory", "What you carry, craft, break, and trade", [
     {
       name: "gear",
       description: "Inspect or equip gear",
       options: [
-        { name: "action", description: "list, equip, or unequip", type: "string", required: false },
+        { name: "action", description: "What to do with the gear", type: "string", required: false },
         { name: "item", description: "Gear instance id", type: "string", required: false },
       ],
     },
@@ -642,15 +664,15 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "crates",
       description: "List or open a stored crate",
       options: [
-        { name: "action", description: "list, preview, or open", type: "string", required: true },
+        { name: "action", description: "What to do with the crate", type: "string", required: true },
         { name: "crate", description: "Crate table or grant id", type: "string", required: false },
       ],
     },
     {
       name: "trade",
-      description: "Offer, inspect, confirm, edit, or cancel a trade",
+      description: "Offer a trade, or walk away from one",
       options: [
-        { name: "action", description: "offer, inspect, confirm, edit, or cancel", type: "string", required: true },
+        { name: "action", description: "What to do with the trade", type: "string", required: true },
         { name: "member", description: "The other member", type: "user", required: false },
         { name: "item", description: "Gear you offer", type: "string", required: false },
         { name: "request", description: "Gear you request", type: "string", required: false },
@@ -663,7 +685,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "craft",
       description: "Preview or craft a published recipe",
       options: [
-        { name: "action", description: "list, preview, or make", type: "string", required: true },
+        { name: "action", description: "What to do with the recipe", type: "string", required: true },
         { name: "recipe", description: "Recipe slug", type: "string", required: false },
       ],
     },
@@ -671,7 +693,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "salvage",
       description: "Preview or confirm salvage",
       options: [
-        { name: "action", description: "preview or confirm", type: "string", required: true },
+        { name: "action", description: "Look first, or break it down", type: "string", required: true },
         { name: "item", description: "Gear instance id", type: "string", required: false },
       ],
     },
@@ -679,7 +701,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "upgrade",
       description: "Preview or apply a guaranteed upgrade",
       options: [
-        { name: "action", description: "preview or apply", type: "string", required: true },
+        { name: "action", description: "Look first, or spend the materials", type: "string", required: true },
         { name: "item", description: "Gear instance id", type: "string", required: false },
       ],
     },
@@ -687,13 +709,13 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "reroll",
       description: "Preview or replace one affix",
       options: [
-        { name: "action", description: "preview or apply", type: "string", required: true },
+        { name: "action", description: "Look first, or replace the affix", type: "string", required: true },
         { name: "item", description: "Gear instance id", type: "string", required: false },
         { name: "affix", description: "Affix slug to replace", type: "string", required: false },
       ],
     },
   ]),
-  command("profile", "Dossier, cosmetics, privacy, and preferences", [
+  command("profile", "The dossier you show, and the bio you hide", [
     { name: "dossier", description: "Show a public dossier", options: [{ name: "member", description: "Member to view", type: "user", required: false }] },
     {
       name: "cosmetics",
@@ -706,7 +728,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     {
       name: "privacy",
       description: "Change bio visibility",
-      options: [{ name: "visibility", description: "public or private", type: "string", required: true }],
+      options: [{ name: "visibility", description: "Who can read the bio", type: "string", required: true }],
     },
     {
       name: "preferences",
@@ -714,41 +736,41 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       options: [{ name: "bio", description: "Profile bio", type: "string", required: false }],
     },
   ]),
-  command("shop", "Supply, Ingot, and member marketplace", [
+  command("shop", "The shop, the Ingot counter, and member listings", [
     {
       name: "supply",
       description: "Browse or buy the Marks supply shop",
       options: [
-        { name: "action", description: "browse or buy", type: "string", required: true },
+        { name: "action", description: "Look through the stock, or buy", type: "string", required: true },
         { name: "offer", description: "Offer slug", type: "string", required: false },
       ],
     },
     {
       name: "ingot",
-      description: "Browse, buy, reveal, or refund an Ingot purchase",
+      description: "Spend Ingots, or take the purchase back",
       options: [
-        { name: "action", description: "browse, buy, reveal, or refund", type: "string", required: true },
+        { name: "action", description: "Look, buy, reveal, or take it back", type: "string", required: true },
         { name: "offer", description: "Offer slug", type: "string", required: false },
         { name: "purchase", description: "Purchase id", type: "string", required: false },
       ],
     },
     {
       name: "marketplace",
-      description: "List, buy, or cancel a fixed-price listing",
+      description: "Put gear on the board, or buy what is there",
       options: [
-        { name: "action", description: "browse, list, buy, or cancel", type: "string", required: true },
+        { name: "action", description: "Look, list, buy, or pull it down", type: "string", required: true },
         { name: "item", description: "Gear instance id", type: "string", required: false },
         { name: "price", description: "Fixed Marks price", type: "integer", required: false },
         { name: "listing", description: "Listing id", type: "string", required: false },
       ],
     },
   ]),
-  command("blackjack", "Solo and social tables", [
+  command("blackjack", "A table alone, or a table with company", [
     {
       name: "solo",
-      description: "Quote, open, or play a solo hand",
+      description: "Sit alone at the table",
       options: [
-        { name: "action", description: "quote, open, hit, stand, double, or split", type: "string", required: true },
+        { name: "action", description: "Price the hand, or play the cards", type: "string", required: true },
         { name: "stake", description: "Stake in Marks", type: "integer", required: false },
         { name: "quote", description: "Quote id to open", type: "string", required: false },
         { name: "table", description: "Table id", type: "string", required: false },
@@ -756,9 +778,9 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "social",
-      description: "Quote, open, join, or play a social hand",
+      description: "Sit down with the table",
       options: [
-        { name: "action", description: "quote, open, join, hit, stand, double, or split", type: "string", required: true },
+        { name: "action", description: "Price a seat, or play the cards", type: "string", required: true },
         { name: "stake", description: "Stake in Marks", type: "integer", required: false },
         { name: "quote", description: "Quote id", type: "string", required: false },
         { name: "table", description: "Table id", type: "string", required: false },
@@ -770,13 +792,13 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       options: [{ name: "table", description: "Table id", type: "string", required: false }],
     },
   ]),
-  command("deaddrop", "Board, paid pick, and staff special boards", [
+  command("deaddrop", "The covered board, and one paid cell", [
     { name: "board", description: "Show the shared board, jackpot, and picks left", options: [] },
     {
       name: "pick",
       description: "Quote or buy one covered cell",
       options: [
-        { name: "action", description: "quote or buy", type: "string", required: true },
+        { name: "action", description: "Price it, or pay the quote", type: "string", required: true },
         { name: "coordinate", description: "Cell from A1 through F6", type: "string", required: false },
         { name: "quote", description: "Quote id to buy", type: "string", required: false },
       ],
@@ -790,20 +812,20 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "special",
       description: "Set a special board or activate a Market Collapse",
       options: [
-        { name: "action", description: "set or activate", type: "string", required: true },
-        { name: "kind", description: "collapse, gear, crate, clue, or clear", type: "string", required: false },
+        { name: "action", description: "Lay the board, or spend a charge", type: "string", required: true },
+        { name: "kind", description: "What the special board holds", type: "string", required: false },
         { name: "payload", description: "Quantity, slug, or clue", type: "string", required: false },
         { name: "charge", description: "Charge id to activate", type: "string", required: false },
         { name: "reason", description: "Audit reason", type: "string", required: false },
       ],
     },
   ]),
-  command("support", "Tickets, temporary rooms, achievements, and commendations", [
+  command("support", "A private ticket, or a room that does not last", [
     {
       name: "tickets",
       description: "Open or manage a private support ticket",
       options: [
-        { name: "action", description: "open, list, close, reopen, claim, transfer, note, transcript, or link", type: "string", required: true },
+        { name: "action", description: "What to do with the ticket", type: "string", required: true },
         { name: "category", description: "Ticket category", type: "string", required: false },
         { name: "ticket", description: "Ticket id", type: "string", required: false },
         { name: "note", description: "Form answer or message", type: "string", required: false },
@@ -811,15 +833,15 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
         { name: "reason", description: "Audit reason", type: "string", required: false },
         { name: "case", description: "Moderation case id", type: "string", required: false },
         { name: "reference", description: "Purchase or reward id", type: "string", required: false },
-        { name: "kind", description: "moderation_case, purchase, or reward", type: "string", required: false },
+        { name: "kind", description: "What the ticket points at", type: "string", required: false },
       ],
     },
     {
       name: "rooms",
       description: "Create or manage a temporary room",
       options: [
-        { name: "action", description: "create, join, leave, close, claim, transfer, or hold", type: "string", required: true },
-        { name: "kind", description: "voice or text", type: "string", required: false },
+        { name: "action", description: "What to do with the room", type: "string", required: true },
+        { name: "kind", description: "A voice room, or a text room", type: "string", required: false },
         { name: "name", description: "Room name", type: "string", required: false },
         { name: "room", description: "Room id", type: "string", required: false },
         { name: "member", description: "Member to invite or transfer to", type: "user", required: false },
@@ -828,16 +850,16 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     "achievements",
     "commendations",
   ]),
-  command("community", "Staff polls, game updates, and authorised management", [
+  command("community", "Polls, updates, and the community desk", [
     {
       name: "polls",
       description: "Create or vote in a staff poll",
       options: [
-        { name: "action", description: "create, vote, results, or close", type: "string", required: true },
+        { name: "action", description: "What to do with the poll", type: "string", required: true },
         { name: "question", description: "Poll question", type: "string", required: false },
         { name: "choice", description: "Choice labels or a choice id", type: "string", required: false },
         { name: "poll", description: "Poll id", type: "string", required: false },
-        { name: "kind", description: "single, multiple, or suggestion", type: "string", required: false },
+        { name: "kind", description: "How the answers work", type: "string", required: false },
         { name: "role", description: "Eligible role", type: "role", required: false },
         { name: "anonymous", description: "Hide voter ids from members", type: "boolean", required: false },
       ],
@@ -911,6 +933,28 @@ export function validateCommandManifest(parents: readonly ParentCommandPlan[] = 
         if (parameter.description.length < 1 || parameter.description.length > 100) {
           errors.push(`/${parent.name} ${option.name} ${parameter.name} description must be 1-100 characters.`);
         }
+        const choices = commandChoices(parent.name, option.name, parameter.name);
+        if (!choices) {
+          continue;
+        }
+        if (choices.length < 1 || choices.length > 25) {
+          errors.push(`/${parent.name} ${option.name} ${parameter.name} must offer 1-25 choices.`);
+        }
+        const values = new Set<string>();
+        for (const choice of choices) {
+          const value = String(choice.value);
+          if (choice.name.length < 1 || choice.name.length > 100 || value.length < 1 || value.length > 100) {
+            errors.push(`/${parent.name} ${option.name} ${parameter.name} has a choice outside 1-100 characters.`);
+          }
+          if (values.has(value)) {
+            errors.push(`/${parent.name} ${option.name} ${parameter.name} repeats choice ${value}.`);
+          }
+          values.add(value);
+          const numeric = typeof choice.value === "number";
+          if (numeric !== (parameter.type === "integer")) {
+            errors.push(`/${parent.name} ${option.name} ${parameter.name} choice ${value} does not match the option type.`);
+          }
+        }
       }
     }
   }
@@ -938,12 +982,16 @@ export function toDiscordCommandBody(parent: ParentCommandPlan): {
       type: 1,
       name: option.name,
       description: option.description,
-      options: option.options.map((parameter) => ({
-        type: PARAMETER_TYPES[parameter.type],
-        name: parameter.name,
-        description: parameter.description,
-        required: parameter.required,
-      })),
+      options: option.options.map((parameter) => {
+        const choices = commandChoices(parent.name, option.name, parameter.name);
+        return {
+          type: PARAMETER_TYPES[parameter.type],
+          name: parameter.name,
+          description: parameter.description,
+          required: parameter.required,
+          ...(choices ? { choices: choices.map((choice) => ({ name: choice.name, value: choice.value })) } : {}),
+        };
+      }),
     })),
   };
 }

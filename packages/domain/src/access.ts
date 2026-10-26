@@ -38,6 +38,31 @@ export function isModuleKey(value: string): value is ModuleKey {
   return (MODULE_KEYS as readonly string[]).includes(value);
 }
 
+/** Not a Discord role. Added only for the guild owner while testing mode is on. */
+export const OWNER_STAFF_ROLE = "collective-owner";
+
+export function ownerActsAsStaff(source: Record<string, string | undefined> = process.env): boolean {
+  const flag = source["DASHBOARD_OWNER_STAFF"]?.trim();
+  if (flag === "true") {
+    return true;
+  }
+  if (flag === "false") {
+    return false;
+  }
+  return (source["NODE_ENV"]?.trim() || "development") === "development";
+}
+
+export function staffRoleIds(
+  roleIds: readonly string[],
+  isOwner: boolean,
+  source: Record<string, string | undefined> = process.env,
+): string[] {
+  if (!isOwner || !ownerActsAsStaff(source) || roleIds.includes(OWNER_STAFF_ROLE)) {
+    return [...roleIds];
+  }
+  return [...roleIds, OWNER_STAFF_ROLE];
+}
+
 export function decideCapability(input: {
   roleIds: readonly string[];
   grants: readonly { roleId: string; capability: string }[];

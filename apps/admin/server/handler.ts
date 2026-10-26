@@ -15,7 +15,9 @@ import {
   createAdminHealthReport,
   discordAuthorizeUrl,
   oauthReadiness,
+  ownerActsAsStaff,
   sha256,
+  staffRoleIds,
   type AppEnv,
 } from "@collective/domain";
 
@@ -295,7 +297,7 @@ async function sendStatus(
 ) {
   const token = readCookie(request.headers.cookie, SESSION_COOKIE);
   if (!token) {
-    send(response, 200, { authenticated: false, oauth, access: "denied", redirectUri: callbackUrl(deps.env) });
+    send(response, 200, { authenticated: false, oauth, access: "denied", redirectUri: callbackUrl(deps.env), ownerStaff: ownerActsAsStaff() });
     return;
   }
   const current = await currentDashboard(deps, token, now);
@@ -309,6 +311,7 @@ async function sendStatus(
     access: "allowed",
     userId: current.session.userId,
     csrfToken: current.session.csrfToken,
+    ownerStaff: ownerActsAsStaff(),
   });
 }
 
@@ -372,11 +375,12 @@ async function allowDashboard(deps: AdminDeps, guildId: string, userId: string) 
   if (!member) {
     return { ok: false as const, status: 403, error: "not_a_member" };
   }
+  const guild = await deps.db.guild.findUnique({ where: { guildId }, select: { ownerUserId: true } });
   const decision = await dashboardDecision(deps.db, { guildId, userId, roleIds: member.roleIds });
   if (decision === "denied") {
     return { ok: false as const, status: 403, error: "denied" };
   }
-  return { ok: true as const, roleIds: member.roleIds };
+  return { ok: true as const, roleIds: staffRoleIds(member.roleIds, guild?.ownerUserId === userId) };
 }
 
 function refuseLogin(response: ServerResponse, env: AppEnv, reason: string): void {
