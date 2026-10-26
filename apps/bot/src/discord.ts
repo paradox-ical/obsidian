@@ -1,7 +1,8 @@
 import type { MessageReaction, PartialMessageReaction, PartialUser, User } from "discord.js";
 import { staffRoleIds } from "@collective/domain";
+import type { APIModalInteractionResponseCallbackData } from "discord-api-types/v10";
 
-import { guideReply } from "./guide.js";
+import { searchActions } from "./experience.js";
 import { outcomeHeading, presentOutcome } from "./present.js";
 import { scrubSecrets } from "./redact.js";
 import { readSlashOptions } from "./slash-options.js";
@@ -29,6 +30,9 @@ export interface DiscordInteractionEvent {
   targetIsOwner: boolean;
   botPermissions: string;
   targetRoleIds: string[];
+  showModal?: (modal: APIModalInteractionResponseCallbackData) => Promise<void>;
+  setPresentation?: (parent: string, action?: string) => void;
+  resolveTarget?: (userId: string) => Promise<{ targetRoleIds: string[]; targetPosition: number | null; targetIsOwner: boolean }>;
   reply: (
     content: string,
     extras?: { filename: string; bytes: Uint8Array } | {
@@ -101,6 +105,12 @@ export async function startDiscordGateway(input: {
       });
     });
     client.on(Events.InteractionCreate, (interaction) => {
+      if (interaction.isAutocomplete()) {
+        const focused = interaction.options.getFocused(true);
+        const results = interaction.commandName === "help" && focused.name === "query" ? searchActions(String(focused.value)) : [];
+        void interaction.respond(results).catch(() => undefined);
+        return;
+      }
       if (interaction.isButton() && (interaction.customId.startsWith("publish:approve:") || interaction.customId.startsWith("publish:changes:"))) {
         const reviewId = interaction.customId.startsWith("publish:approve:")
           ? interaction.customId.slice("publish:approve:".length)
@@ -121,6 +131,8 @@ export async function startDiscordGateway(input: {
           ],
         }).catch((error: unknown) => {
           input.log(scrubSecrets(error instanceof Error ? error.message : "Publication modal failed.", [input.token]));
+          const notice = presentOutcome({ heading: "Publication review", body: "The review form could not open. Your review decision was not submitted. Try the review controls again or open `/publish open`.", warning: true });
+          void interaction.reply({ ...notice, flags: notice.flags | MessageFlags.Ephemeral, allowedMentions: { parse: [] } }).catch(() => undefined);
         });
         return;
       }
@@ -148,25 +160,19 @@ export async function startDiscordGateway(input: {
           })
           .catch((error: unknown) => {
             input.log(scrubSecrets(error instanceof Error ? error.message : "CAPTCHA modal failed.", [input.token]));
+            const notice = presentOutcome({ heading: "Verification", body: "The answer form could not open. Your CAPTCHA answer was not submitted. Try again, or use `/verify assistance` for help.", warning: true });
+            void interaction.reply({ ...notice, flags: notice.flags | MessageFlags.Ephemeral, allowedMentions: { parse: [] } }).catch(() => undefined);
           });
         return;
       }
       const publishModal = interaction.isModalSubmit() && interaction.customId.startsWith("publish:") ? interaction : null;
-      const modal = publishModal ?? (interaction.isModalSubmit() && interaction.customId === "community:captcha-submit" ? interaction : null);
+      const modal = publishModal ?? (interaction.isModalSubmit() && (interaction.customId === "community:captcha-submit" || interaction.customId.startsWith("ux:submit:")) ? interaction : null);
       const command = interaction.isChatInputCommand() ? interaction : null;
       const component = interaction.isMessageComponent() ? interaction : null;
       const relevant =
         modal !== null ||
         command !== null ||
-        (component !== null &&
-          (component.customId.startsWith("market:") ||
-            component.customId.startsWith("publish:") ||
-            component.customId.startsWith("session:") ||
-            component.customId.startsWith("community:") ||
-            component.customId.startsWith("ticket:") ||
-            component.customId.startsWith("character:") ||
-            component.customId.startsWith("combat:") ||
-            component.customId.startsWith("go:")));
+        component !== null;
       if (!relevant || !input.onInteraction) {
         return;
       }
@@ -174,7 +180,7 @@ export async function startDiscordGateway(input: {
         const visibleFlags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
         if (modal) {
           await modal.deferReply({ flags: visibleFlags });
-        } else if (component) {
+        } else if (component && !component.customId.startsWith("ux:input:")) {
           await component.deferUpdate();
         } else if (command) {
           await command.deferReply({ flags: visibleFlags });
@@ -194,6 +200,9 @@ export async function startDiscordGateway(input: {
         const options: Record<string, string | boolean | number> = {};
         if (modal && modal.customId === "community:captcha-submit") {
           options["answer"] = modal.fields.getTextInputValue("answer");
+        }
+        if (modal?.customId.startsWith("ux:submit:")) {
+          options["value"] = modal.fields.getTextInputValue("value");
         }
         if (publishModal?.customId.startsWith("publish:approve-submit:")) {
           options["destination"] = publishModal.fields.getTextInputValue("destination");
@@ -220,11 +229,13 @@ export async function startDiscordGateway(input: {
           ? targetRoleIds.reduce((highest, roleId) => Math.max(highest, guild?.roles.cache.get(roleId)?.position ?? 0), 0)
           : null;
         const actorPosition = roleIds.reduce((highest, roleId) => Math.max(highest, guild?.roles.cache.get(roleId)?.position ?? 0), 0);
-        const values = interaction.isStringSelectMenu() ? [...interaction.values] : undefined;
+        const values = interaction.isAnySelectMenu() ? [...interaction.values] : undefined;
+        let displaySource = command?.commandName ?? component?.customId ?? modal?.customId ?? "verify";
+        let displayAction = command?.options.getSubcommand(false) ?? undefined;
         await input.onInteraction?.({
           interactionId: interaction.id,
           kind: component ? "component" : "command",
-          name: publishModal ? publishModal.customId : modal ? "verify" : component ? component.customId : (command?.commandName ?? ""),
+          name: publishModal ? publishModal.customId : modal?.customId.startsWith("ux:") ? modal.customId : modal ? "verify" : component ? component.customId : (command?.commandName ?? ""),
           ...(publishModal ? {} : modal ? { subcommand: "captcha" } : command ? { subcommand: command.options.getSubcommand(false) ?? undefined } : {}),
           options,
           ...(values ? { values } : {}),
@@ -247,29 +258,35 @@ export async function startDiscordGateway(input: {
           targetIsOwner: Boolean(targetMember && guild?.ownerId === ("id" in targetMember ? targetMember.id : interaction.user.id)),
           botPermissions: guild?.members.me?.permissions.bitfield.toString() ?? "0",
           targetRoleIds,
+          showModal: async (form) => { if (interaction.isButton()) await interaction.showModal(form); },
+          setPresentation: (parent, action) => { displaySource = parent; displayAction = action; },
+          resolveTarget: async (userId) => {
+            const target = guild ? await guild.members.fetch(userId).catch(() => null) : null;
+            return { targetRoleIds: target ? [...target.roles.cache.keys()] : [], targetPosition: target?.roles.highest.position ?? null, targetIsOwner: userId === guild?.ownerId };
+          },
           reply: async (content, extras) => {
             const file = extras && "bytes" in extras ? extras : extras?.file;
             const attachment = file ? [{ attachment: Buffer.from(file.bytes), name: file.filename }] : undefined;
-            const text = content.length > 3400 ? `${content.slice(0, 3380)}\nThe rest was cut so Discord could show this.` : content;
-            const source = command?.commandName ?? component?.customId ?? "Verification";
-            const subcommand = command?.options.getSubcommand(false) ?? undefined;
-            const guided = guideReply(source, text, extras && "components" in extras ? extras.components : undefined);
-            const warning = /nothing was written|did not finish|not allowed|did not go through|unavailable|not completed/i.test(guided.body);
+            const rows = extras && "components" in extras ? extras.components : undefined;
+            const warning = /nothing was written|did not finish|not allowed|did not go through|unavailable|not completed|expired|not accepted/i.test(content);
             const presented = presentOutcome({
-              heading: outcomeHeading(source),
-              ...(subcommand ? { detail: outcomeHeading(subcommand) } : {}),
-              body: guided.body,
+              heading: outcomeHeading(displaySource),
+              ...(displayAction ? { detail: outcomeHeading(displayAction) } : {}),
+              body: content,
               warning,
-              ...(guided.rows ? { rows: guided.rows } : {}),
+              ...(rows ? { rows } : {}),
               ...(file ? { fileName: file.filename } : {}),
             });
             const payload = {
               components: presented.components,
               flags: presented.flags | MessageFlags.Ephemeral,
+              allowedMentions: { parse: [] as never[] },
               ...(attachment ? { files: attachment } : {}),
             };
             if (component && !modal) {
-              await component.followUp(payload);
+              if (!component.deferred && !component.replied) await component.deferUpdate();
+              if (component.message.flags.has(MessageFlags.Ephemeral)) await component.editReply(payload);
+              else await component.followUp(payload);
               return;
             }
             const message = await (modal ?? command)?.editReply(payload);
@@ -297,15 +314,15 @@ export async function startDiscordGateway(input: {
         input.log(scrubSecrets(error instanceof Error ? error.message : "Interaction failed.", [input.token]));
         const notice = presentOutcome({
           heading: outcomeHeading(command?.commandName ?? component?.customId ?? "Collective"),
-          body: "That command did not finish. Nothing new was confirmed.",
+          body: "This interaction could not finish. Check the relevant history or current state before retrying, part of the action may already have completed. Open `/help open` to continue.",
           warning: true,
         });
-        const failedPayload = { components: notice.components, flags: notice.flags | MessageFlags.Ephemeral };
+        const failedPayload = { components: notice.components, flags: notice.flags | MessageFlags.Ephemeral, allowedMentions: { parse: [] as never[] } };
         const failed = command
           ? command.editReply(failedPayload)
           : modal
             ? modal.editReply(failedPayload)
-            : component?.followUp(failedPayload);
+            : component?.deferred || component?.replied ? component.followUp(failedPayload) : component?.reply(failedPayload);
         void failed?.catch(() => undefined);
       });
     });

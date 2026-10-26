@@ -26,7 +26,8 @@
     "boot:check": "node scripts/boot-check.mjs",
     "backup:database": "node scripts/backup-database.mjs",
     "backup:secrets": "node --env-file-if-exists=.env scripts/secret-backup.mjs",
-    "backup:rehearse": "node scripts/restore-rehearsal.mjs"
+    "backup:rehearse": "node scripts/restore-rehearsal.mjs",
+    "experience:audit": "node scripts/discord-experience-audit.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -42,32 +42,71 @@ export interface ParentCommandPlan {
 const PANEL_LINES: Record<string, string> = {
   search: "Look up what a module does",
   actions: "See what you can do from here",
-  wizard: "Walk the setup",
+  wizard: "Review server setup",
   diagnostics: "See what is still missing",
-  mappings: "Point the channels and roles",
-  embed: "Draft an embed",
-  review: "Send a draft for review",
-  announce: "Post an announcement",
-  pin: "Pin a message",
-  sticky: "Hold a message in place",
-  rules: "Write a rule that answers for you",
+  mappings: "Review channel and role mappings",
+  embed: "Open embed drafting tools",
+  review: "Open publication review tools",
+  announce: "Open announcement management",
+  pin: "Open managed pin tools",
+  sticky: "Open sticky message tools",
+  rules: "Review saved auto-reply rules",
   test: "Try a rule before it fires",
   achievements: "Read the achievement book",
   commendations: "Leave a commendation",
-  updates: "Post a game update",
-  manage: "Staff the community desk",
+  updates: "Review game-update feeds and recorded updates",
+  manage: "Review community settings",
+};
+
+const COMMAND_DESCRIPTIONS: Record<string, string> = {
+  help: "Find your next move. Browse a section or search for an action.",
+  setup: "Review configuration, channels and operational diagnostics.",
+  verify: "Complete verification, get accessible help or review a member.",
+  roles: "Browse published role panels and manage your selections.",
+  accounts: "Manage gaming handles, ownership status and visibility.",
+  temproles: "Grant, renew or change a role's expiry with an audit reason.",
+  invites: "View your recruitment progress or correct an attribution.",
+  birthday: "Manage your optional birthday, announcements and gift status.",
+  mod: "Review warnings, cases, sanctions and appeals.",
+  report: "Tell staff what happened. Your report stays private.",
+  logs: "Search, export and review log retention. Staff access required.",
+  stats: "Review economy activity and exports. Staff access required.",
+  rank: "View community progression and your public wallet.",
+  economy: "Check balances, send Marks and view receipts.",
+  market: "View the market or request a buy or sell quote.",
+  leaderboard: "Browse public rankings and archived seasons.",
+  events: "RSVP, organise an event or manage attendance.",
+  schedule: "View upcoming events and manage linked announcements or rooms.",
+  crew: "Build a crew, organise a session or find a group.",
+  prediction: "Make a free prediction or review the terms of a Marks stake.",
+  contest: "Submit work, cast a ballot or manage a contest.",
+  giveaway: "Enter, check bonus entries or manage a draw and claim.",
+  publish: "Open publication tools for drafts, reviews and scheduled posts.",
+  reply: "Review reply rules or test a phrase without posting it.",
+  lottery: "Check the draw, preview ticket costs and review results.",
+  contracts: "Choose your work, check progress and manage notifications.",
+  combat: "Practise, join a queue, challenge a member or review a battle.",
+  character: "Choose a class, allocate points and manage abilities and loadouts.",
+  explore: "Preview expeditions, play branching missions or assemble a crew.",
+  inventory: "Manage gear, crates, materials, trades and crafting.",
+  profile: "Manage your public profile, cosmetics, bio and privacy.",
+  shop: "Browse supplies, Ingot offers and member listings.",
+  blackjack: "Preview a stake, play a solo or social table and review receipts.",
+  deaddrop: "Inspect the board, preview a paid pick and manage reminders.",
+  support: "Open a ticket, manage temporary rooms or view achievements.",
+  community: "Manage staff polls, game updates and community settings.",
 };
 
 function command(name: string, summary: string, actions: Array<string | Subcommand>): ParentCommandPlan {
   return {
     name,
-    summary,
-    description: summary.length <= 100 ? summary : `${summary.slice(0, 97)}...`,
-    options: actions.map((action) =>
+    summary: COMMAND_DESCRIPTIONS[name] ?? summary,
+    description: COMMAND_DESCRIPTIONS[name] ?? summary.slice(0, 100),
+    options: [{ name: "open", description: "Open the guided menu, no options to remember", options: [] }, ...actions.map((action) =>
       typeof action === "string"
         ? { name: action, description: PANEL_LINES[action] ?? `Open ${action.replaceAll("_", " ")}`, options: [] }
         : action,
-    ),
+    )],
   };
 }
 
@@ -122,7 +161,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "link",
       description: "Save a self-reported handle",
       options: [
-        { name: "provider", description: "Where the handle lives", type: "string", required: true },
+        { name: "provider", description: "Gaming account provider", type: "string", required: true },
         { name: "handle", description: "The name you answer to there", type: "string", required: true },
       ],
     },
@@ -131,14 +170,14 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "privacy",
       description: "Set account visibility",
       options: [
-        { name: "provider", description: "Where the handle lives", type: "string", required: true },
+        { name: "provider", description: "Gaming account provider", type: "string", required: true },
         { name: "visibility", description: "Who can see this handle", type: "string", required: true },
       ],
     },
     {
       name: "unlink",
       description: "Remove one linked account",
-      options: [{ name: "provider", description: "Where the handle lives", type: "string", required: true }],
+      options: [{ name: "provider", description: "Gaming account provider", type: "string", required: true }],
     },
   ]),
   command("temproles", "Lend a role, and say when it ends", [
@@ -211,7 +250,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       description: "Apply a manual sanction",
       options: [
         { name: "member", description: "Member to review", type: "user", required: true },
-        { name: "action", description: "What the case should do", type: "string", required: true },
+        { name: "action", description: "Moderation action", type: "string", required: true },
         { name: "reason", description: "Audit reason", type: "string", required: true },
         { name: "points", description: "Warning points", type: "integer", required: false },
         { name: "days", description: "Days until expiry", type: "integer", required: false },
@@ -297,9 +336,9 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "adjust",
-      description: "Staff hands on the till",
+      description: "Adjust a member Marks balance",
       options: [
-        { name: "action", description: "How the Marks should move", type: "string", required: true },
+        { name: "action", description: "Adjustment type", type: "string", required: true },
         { name: "member", description: "Member to adjust", type: "user", required: true },
         { name: "amount", description: "Whole Marks", type: "integer", required: true },
         { name: "reason", description: "Audit reason", type: "string", required: true },
@@ -349,13 +388,13 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
   command("events", "Official nights, and whether you are coming", [
     {
       name: "manage",
-      description: "Run the night, or write what happened",
+      description: "Create, edit or manage an event and its attendance",
       options: [
         { name: "action", description: "What to do with the event", type: "string", required: true },
         { name: "name", description: "Event name", type: "string", required: false },
         { name: "occurrence", description: "Occurrence id", type: "string", required: false },
         { name: "host", description: "Who is hosting", type: "user", required: false },
-        { name: "scope", description: "This night, or the whole run", type: "string", required: false },
+        { name: "scope", description: "One occurrence or the whole series", type: "string", required: false },
         { name: "when", description: "ISO start time for a one-off event", type: "string", required: false },
         { name: "recap", description: "Recap text", type: "string", required: false },
         { name: "member", description: "Which member", type: "user", required: false },
@@ -395,7 +434,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "session",
-      description: "Open a table, or take a seat",
+      description: "Create, join or manage a group session",
       options: [
         { name: "action", description: "What happens to the session", type: "string", required: true },
         { name: "crew", description: "Persistent crew id", type: "string", required: false },
@@ -488,7 +527,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
   command("giveaway", "One free entry, then the draw", [
     {
       name: "enter",
-      description: "Take the one free entry",
+      description: "Enter a giveaway for free",
       options: [{ name: "giveaway", description: "Giveaway id", type: "string", required: true }],
     },
     {
@@ -501,7 +540,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
     {
       name: "draw",
-      description: "Close the hat, or draw a name",
+      description: "Manage entries, draws and prize claims",
       options: [
         { name: "action", description: "What to do with the draw", type: "string", required: true },
         { name: "title", description: "Giveaway title", type: "string", required: false },
@@ -515,7 +554,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
   command("publish", "Drafts, announcements, pins, and stickies", ["embed", "review", "announce", "pin", "sticky"]),
   command("reply", "Rules that answer for you", [
     { name: "rules", description: "The rules that answer for you", options: [] },
-    { name: "test", description: "Try a phrase against the rules", options: [{ name: "text", description: "The phrase to try", type: "string", required: false }] },
+    { name: "test", description: "Try a phrase against the rules", options: [{ name: "text", description: "Text to test against reply rules", type: "string", required: false }] },
   ]),
   command("lottery", "Tickets for the open draw", [
     {
@@ -569,7 +608,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "queue",
       description: "Join or leave a casual or ranked queue",
       options: [
-        { name: "action", description: "Step in, step out, or take the match", type: "string", required: false },
+        { name: "action", description: "Join, leave or accept a match", type: "string", required: false },
         { name: "mode", description: "How the match is scored", type: "string", required: false },
         { name: "stake", description: "Equal Marks stake, or zero", type: "integer", required: false },
         { name: "match", description: "Match id for a casual proposal", type: "string", required: false },
@@ -592,7 +631,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       description: "Fight a test opponent",
       options: [
         { name: "mode", description: "How the fight is played", type: "string", required: false },
-        { name: "opponent", description: "Who is waiting on the floor", type: "string", required: false },
+        { name: "opponent", description: "Practice opponent", type: "string", required: false },
         { name: "battle", description: "Battle id", type: "string", required: false },
         { name: "move", description: "What you do this turn", type: "string", required: false },
       ],
@@ -600,29 +639,29 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     { name: "records", description: "Show a battle record", options: [{ name: "battle", description: "Battle id", type: "string", required: false }] },
   ]),
   command("character", "Pick a life, spend the points, and set the loadout", [
-    { name: "class", description: "Look over the six lives, or take one", options: [{ name: "class", description: "The life you take up", type: "string", required: false }] },
+    { name: "class", description: "View or choose your character class", options: [{ name: "class", description: "Character class", type: "string", required: false }] },
     {
       name: "stats",
       description: "Show or spend stat points",
       options: [
-        { name: "stat", description: "Where the points go", type: "string", required: false },
+        { name: "stat", description: "Stat to improve", type: "string", required: false },
         { name: "points", description: "Points to allocate", type: "integer", required: false },
       ],
     },
     { name: "abilities", description: "Show abilities, cooldowns, and formulas", options: [] },
     {
       name: "respec",
-      description: "Reset the points, or change the life",
+      description: "Review a stat reset, class change or introductory reset",
       options: [
         { name: "action", description: "Reset, change class, or use the intro", type: "string", required: true },
-        { name: "class", description: "The life you change into", type: "string", required: false },
+        { name: "class", description: "New character class", type: "string", required: false },
       ],
     },
     {
       name: "loadout",
       description: "Equip up to four active abilities",
       options: [
-        { name: "slot", description: "Which of the four slots", type: "integer", required: false },
+        { name: "slot", description: "Ability slot, 1 through 4", type: "integer", required: false },
         { name: "ability", description: "Which ability takes the slot", type: "string", required: false },
       ],
     },
@@ -634,7 +673,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       options: [
         { name: "action", description: "Look, leave, or read the report", type: "string", required: true },
         { name: "region", description: "Where the job is", type: "string", required: false },
-        { name: "difficulty", description: "How hard the street is", type: "string", required: false },
+        { name: "difficulty", description: "Expedition difficulty", type: "string", required: false },
         { name: "item", description: "Gear instance to reserve", type: "string", required: false },
         { name: "notify", description: "Store a completion report notice", type: "boolean", required: false },
       ],
@@ -856,7 +895,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     "achievements",
     {
       name: "commendations",
-      description: "Read one, or leave one",
+      description: "View or give a commendation",
       options: [
         { name: "member", description: "Who it is for", type: "user", required: false },
         { name: "category", description: "What it is for", type: "string", required: false },
@@ -1003,6 +1042,7 @@ export function toDiscordCommandBody(parent: ParentCommandPlan): {
           name: parameter.name,
           description: parameter.description,
           required: parameter.required,
+          ...(parent.name === "help" && parameter.name === "query" ? { autocomplete: true } : {}),
           ...(choices ? { choices: choices.map((choice) => ({ name: choice.name, value: choice.value })) } : {}),
         };
       }),

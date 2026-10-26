@@ -5,10 +5,11 @@ import { guideReply, polish, spokenCode } from "./guide.js";
 import { buttonRow } from "./present.js";
 
 describe("the reply guide", () => {
-  it("says what was not posted, and points at the command that was actually used", () => {
+  it("removes repetitive delivery boilerplate and points at the command that was actually used", () => {
     const guided = guideReply("go:economy:wallet", "The pocket is open. The notice is not posted.");
     expect(polish("Nothing was charged.")).toContain("Nothing was charged");
-    expect(guided.body).toContain("Nothing was posted in a channel");
+    expect(guided.body).not.toContain("The notice is not posted");
+    expect(guided.body).toContain("Marks wallet");
     expect(guided.body).toContain("**Next**");
     expect(guided.rows?.[0]?.components[0]?.["custom_id"]).toBe("go:economy:history");
   });
@@ -24,5 +25,11 @@ describe("the reply guide", () => {
     expect(combatPress("combat:menu")).toEqual({ subcommand: "action", options: {} });
     expect(combatPress("combat:queue:join:ranked").options).toEqual({ action: "join", mode: "ranked" });
     expect(spokenCode("denied")).toBe("You are not allowed to do that.");
+  });
+
+  it("keeps role-panel results connected to roles rather than staff polls", () => {
+    const guided = guideReply("community:select:panel", "Role selection updated.");
+    expect(JSON.stringify(guided.rows)).toContain("go:roles:open");
+    expect(JSON.stringify(guided.rows)).not.toContain("go:community:open");
   });
 });

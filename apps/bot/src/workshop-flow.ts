@@ -45,7 +45,7 @@ export async function runWorkshopCommand(
   if (input.subcommand === "materials") {
     const rows = await readMaterials(db, { guildId: input.guildId, userId: input.userId });
     const shown = rows.length > 0 ? rows.map((row) => `${row.slug} ${row.quantity}`).join(", ") : "No materials yet.";
-    return { content: `${shown}\n\nCrates are \`/inventory crates\`. The notice is not posted.` };
+    return { next: { label: "Browse recipes", subcommand: "craft", options: { action: "list" } }, content: `${shown}\n\nCrates are \`/inventory crates\`. The notice is not posted.` };
   }
   if (input.subcommand === "trade") {
     return { content: await tradeText(db, input, action, itemId) };
@@ -65,7 +65,7 @@ export async function runWorkshopCommand(
     if (preview.result !== "preview") {
       return { content: "That item was not found." };
     }
-    return { content: `Salvage would destroy this item and pay ${preview.amount} ${preview.material}. Confirm before anything is destroyed.` };
+    return { next: { label: "Review salvage", subcommand: "salvage", options: { action: "confirm", item: itemId } }, content: `Salvage would destroy this item and pay ${preview.amount} ${preview.material}. Confirm before anything is destroyed.` };
   }
   if (input.subcommand === "upgrade" && itemId) {
     if (action === "apply") {
@@ -82,7 +82,7 @@ export async function runWorkshopCommand(
     if (preview.result !== "preview") {
       return { content: "That item was not found." };
     }
-    return { content: `The next upgrade costs ${preview.marks} Marks and ${preview.amount} ${preview.material}. It is guaranteed.` };
+    return { next: { label: "Review upgrade", subcommand: "upgrade", options: { action: "apply", item: itemId } }, content: `The next upgrade costs ${preview.marks} Marks and ${preview.amount} ${preview.material}. It is guaranteed.` };
   }
   if (input.subcommand === "reroll" && itemId) {
     const affix = text(input.options, "affix");
@@ -97,7 +97,7 @@ export async function runWorkshopCommand(
     if (preview.result !== "preview") {
       return { content: "That affix cannot be rerolled." };
     }
-    return { content: `${preview.slug} can roll ${preview.min} to ${preview.max}. This reroll costs ${preview.marks} Marks.` };
+    return { next: { label: "Review reroll", subcommand: "reroll", options: { action: "apply", item: itemId, affix } }, content: `${preview.slug} can roll ${preview.min} to ${preview.max}. This reroll costs ${preview.marks} Marks.` };
   }
   return { content: "Name the item, or pick the action. Crates are `/inventory crates`." };
 }

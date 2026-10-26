@@ -1,4 +1,27 @@
-# Progress
+# Current work: complete Discord experience redesign
+
+The full implemented Discord surface has been audited and redesigned on the existing services. The generated inventory in `docs/DISCORD_EXPERIENCE_COVERAGE.md` covers 36 parents, 116 existing subcommands, 235 routes/action variants and 20 flow handlers. `docs/DISCORD_EXPERIENCE.md` records the interaction design, preserved boundaries and live review procedure.
+
+- Added `/help open` and a guided `open` entry for every parent, contextual action fields, native entity selectors, modal text/amount entry, exact-cost/consequence reviews, edit/cancel controls and persisted continuations.
+- Kept direct slash names, option keys and existing handlers. Exposed previously implemented ticket panel/message and room invite/lock/rename actions in their existing action lists. Removed the advertised suggestion option because the existing policy excludes it.
+- Applied consistent result cards, readable labels, contextual navigation, full text/control pagination, CAPTCHA images, private panel updates and no-mention defaults to all interaction replies. Existing public controls remain public and respond privately.
+- Added direct quote-to-review, workshop and exploration continuations. Active blackjack hands show own cards, stake, total and next moves; hidden dealer and other-player information stays hidden. Extra-stake actions require review.
+- Applied the common renderer to all five implemented worker message POST paths. Existing setup-required delivery adapters remain setup-required. User-authored publications and stored content are preserved.
+- Forms/pages use the existing InteractionSession table with actor, guild, expiry and configuration-revision checks. One-use transitions use compare-and-set. Services still re-check permissions and business state. No database schema, economy-rule, permission, price, reward, schedule, cooldown or ledger changes.
+
+## Verification for this redesign
+
+Local environment: Node.js v24.22.1. Prisma generation, workspace build, typecheck, lint, unit tests, command-plan dry run and the source coverage audit were run. Final results: `npm run build`, `npm run typecheck`, `npm run lint` passed; `npm test` passed 39 files and 117 tests; `experience:audit` passed all 36 parents, 116 subcommands, 235 action variants and 20 flow handlers; `commands:plan` printed dry run and parent count 36. The command-plan process used an inert local DATABASE_URL for environment validation only and did not connect to a database or send commands. `git diff --check` passed. Unit tests use a mocked Discord client and controlled repository doubles; they are not live Discord or PostgreSQL verification.
+
+No live Discord login, command registration, channel write, production deployment or production-data mutation was performed. No database integration suite was run locally because this workspace has no disposable PostgreSQL instance. The existing CI pipeline retains its PostgreSQL integration step.
+
+## Next unfinished task
+
+Run the live Discord acceptance pass in `docs/DISCORD_EXPERIENCE.md` with credentials and an explicitly named test guild. Check all families in the coverage inventory, real persisted records, private/public components, modals, selects, expiry, permission removal, quoted costs, long results and notifications. Production registration and deployment remain outside this change.
+
+---
+
+# Earlier progress
 
 Work package 26 (phase 10B, acceptance audit) is the current package. No further build prompt is waiting. The production checklist was not executed.
 

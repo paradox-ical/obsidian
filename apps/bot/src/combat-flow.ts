@@ -46,7 +46,7 @@ export function combatPress(customId: string): { subcommand: string; options: Re
 function floorMenu(): CombatReply {
   return {
     content: [
-      "**The floor**",
+      "**Combat**",
       "Practice spends nothing. The queue and a challenge use an equal stake, and zero is allowed.",
       "Ranked rewards apply only when both fighters are eligible. Otherwise the match is casual.",
       "A challenge needs another member. `/combat challenge`, then pick them.",
@@ -55,8 +55,8 @@ function floorMenu(): CombatReply {
     ].join("\n"),
     components: [
       buttonRow([
-        { id: "combat:quick:training-dummy", label: "Quick dummy" },
-        { id: "combat:tactical:training-dummy", label: "Tactical dummy" },
+        { id: "combat:quick:training-dummy", label: "Quick practice" },
+        { id: "combat:tactical:training-dummy", label: "Tactical practice" },
         { id: "combat:queue:join:casual", label: "Casual queue" },
         { id: "combat:queue:join:ranked", label: "Ranked queue" },
         { id: "combat:queue:leave", label: "Leave queue" },
@@ -122,7 +122,7 @@ export async function runCombatCommand(
   }
   return {
     content: `**${started.status === "resolved" ? "The fight is over" : "The fight is still open"}**\nWinner: ${started.winner || "none"}\n${started.log.at(-1) ?? ""}\n\nUnrevealed rolls stay hidden.`,
-    components: [buttonRow([{ id: "combat:menu", label: "The floor" }, { id: "go:character:stats", label: "The points" }])],
+    components: [buttonRow([{ id: "combat:menu", label: "Combat" }, { id: "go:character:stats", label: "Stat points" }])],
   };
 }
 

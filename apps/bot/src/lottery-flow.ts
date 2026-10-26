@@ -1,4 +1,5 @@
 import { buyTickets, quoteTickets, readDraw, readHistory, type PrismaClient } from "@collective/db";
+import { buttonRow } from "./present.js";
 
 type Options = Record<string, string | boolean | number>;
 
@@ -58,6 +59,7 @@ export async function runLotteryCommand(
     });
     if (quoted.result === "quoted") {
       return {
+        components: [buttonRow([{ id: `ux:quote:lottery:tickets:${quoted.quoteId}`, label: "Review ticket purchase", style: 1 }])],
         content: [
           `**Quote** ${quoted.quoteId}`,
           `**Entries** ${quoted.entries} · **Tickets** ${quoted.tickets}`,

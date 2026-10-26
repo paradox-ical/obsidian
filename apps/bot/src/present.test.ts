@@ -16,7 +16,7 @@ describe("Discord outcome presentation", () => {
     const container = outcome.components[0] as { type: number; accent_color: number; components: Array<{ type: number; content?: string }> };
     expect(container.type).toBe(17);
     expect(container.accent_color).toBe(0xc4b59a);
-    expect(container.components.map((part) => part.type)).toEqual([10, 14, 10, 1, 13, 14, 10]);
+    expect(container.components.map((part) => part.type)).toEqual([10, 14, 10, 1, 12, 14, 10]);
     expect(container.components[0]?.content).toContain("## Economy");
     expect(container.components[2]?.content).toContain("**Marks**");
   });

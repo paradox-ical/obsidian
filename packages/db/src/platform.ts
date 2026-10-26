@@ -582,10 +582,13 @@ export async function executeSession(
       return { ok: false as const, reason: "denied" as const };
     }
   }
-  await db.interactionSession.update({
-    where: { id: session.id },
+  const claimed = await db.interactionSession.updateMany({
+    where: { id: session.id, consumedAt: null },
     data: { consumedAt: input.now },
   });
+  if (claimed.count !== 1) {
+    return { ok: false as const, reason: "consumed" as const };
+  }
   return { ok: true as const, session };
 }
 
