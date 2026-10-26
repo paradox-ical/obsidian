@@ -31,3 +31,9 @@ npm test
 ```
 
 Database migration, the integration test, and `npm run boot:check` need a migrated PostgreSQL database. `docs/OPERATIONS.md` has the exact commands.
+
+## Discord navigation
+
+Use `/help open` or any existing command's `open` subcommand for guided menus, contextual fields and review controls. Direct slash shortcuts remain available. See [Discord experience](docs/DISCORD_EXPERIENCE.md) and the [complete coverage inventory](docs/DISCORD_EXPERIENCE_COVERAGE.md).
+
+After building, `npm run experience:audit` checks all command/action definitions and flow handlers and regenerates the coverage inventory. It does not register commands or contact Discord.

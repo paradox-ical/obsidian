@@ -25,6 +25,7 @@ export {
   validateCommandManifest,
 } from "./commands.js";
 export type { CommandParameter, ParentCommandPlan, RegistrationDecision, Subcommand } from "./commands.js";
+export { commandChoices } from "./command-choices.js";
 export { EnvValidationError, loadEnv, parseEnv, publicEnvSummary } from "./env.js";
 export type { AppEnv } from "./env.js";
 export {

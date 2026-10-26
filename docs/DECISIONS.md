@@ -359,3 +359,13 @@ Verification, accounts, statistics, dashboard access, publishing, recurrence, ec
 - No production Discord IDs, tokens, or provider credentials were invented.
 - No Dead Drop opening hour or lottery draw time was selected. The master spec leaves the Dead Drop hour unset.
 - No second currency, wallet, or permission model was introduced.
+
+## Discord experience redesign
+
+- Add one guided `open` subcommand to every existing parent while preserving direct slash paths, names and parameter keys. Keep the 36-parent budget.
+- Use one catalog for action-specific forms and one shared response boundary for all handlers. Closed choices and native member/role/channel selects replace memorisation where possible; free text remains available.
+- Reuse persisted InteractionSession records for forms, continuation, review and pagination. Consume transitions with compare-and-set so two clicks cannot execute one confirmation twice. Original domain services remain the authority.
+- Show costs and consequences before mutation, refresh changed review terms, and keep live combat turns and zero-extra-stake card actions immediate.
+- Use restrained diamond branding and plain functional labels. Do not rewrite authored publications or pretend setup-required integrations delivered a message.
+- Preserve complete results and controls with pagination. Update private panels in place, preserve public panels and reply privately.
+- No database migration, price, permission, payout, cooldown, reward, schedule or ledger-rule changes. No live registration or deployment.

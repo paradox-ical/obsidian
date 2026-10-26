@@ -7,6 +7,7 @@ import {
   type APIContainerComponent,
   type APIMessageTopLevelComponent,
 } from "discord-api-types/v10";
+import { MODULE_COPY } from "./experience-catalog.js";
 
 export const COMPONENTS_V2 = 32768;
 
@@ -28,39 +29,40 @@ export function presentOutcome(input: {
 }): { flags: number; components: APIMessageTopLevelComponent[] } {
   const heading = clean(input.heading, 80) || "The Collective";
   const detail = input.detail ? clean(input.detail, 80) : "";
-  const body = input.body.trim().length > 3500 ? `${input.body.trim().slice(0, 3480)}\n…` : input.body.trim() || "No details were returned.";
+  const body = input.body.trim() || "No details were returned.";
+  if (body.length > 4000) throw new Error("Paginate long outcomes before presenting them.");
+  const componentCount = 6 + (input.fileName ? 1 : 0) + (input.rows ?? []).reduce((sum, row) => sum + 1 + row.components.length, 0);
+  if (componentCount > 40) throw new Error("Paginate controls before presenting more than 40 components.");
   const inner: APIComponentInContainer[] = [
     { type: ComponentType.TextDisplay, content: detail ? `## ${heading}\n-# ${detail}` : `## ${heading}` },
     { type: ComponentType.Separator, divider: true, spacing: SeparatorSpacingSize.Small },
     { type: ComponentType.TextDisplay, content: body },
   ];
-  for (const row of (input.rows ?? []).slice(0, 3)) {
+  for (const row of input.rows ?? []) {
     inner.push(row as unknown as APIActionRowComponent<APIComponentInMessageActionRow>);
   }
   if (input.fileName) {
-    inner.push({ type: ComponentType.File, file: { url: `attachment://${input.fileName}` } });
+    if (/\.(png|jpe?g|webp|gif)$/i.test(input.fileName)) inner.push({ type: ComponentType.MediaGallery, items: [{ media: { url: `attachment://${input.fileName}` } }] });
+    else inner.push({ type: ComponentType.File, file: { url: `attachment://${input.fileName}` } });
   }
   inner.push(
     { type: ComponentType.Separator, divider: false, spacing: SeparatorSpacingSize.Small },
-    { type: ComponentType.TextDisplay, content: "-# The Collective" },
+    { type: ComponentType.TextDisplay, content: "-# ◆ The Collective" },
   );
   const container: APIContainerComponent = {
     type: ComponentType.Container,
     accent_color: input.warning ? WARNING : ACCENT,
-    components: inner.slice(0, 10),
+    components: inner,
   };
   return { flags: COMPONENTS_V2, components: [container] };
 }
 
 export function spokenAmount(value: string): string {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) {
-    return value;
-  }
-  if (Number.isInteger(amount)) {
-    return amount.toLocaleString("en-AU");
-  }
-  return amount.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(value);
+  if (!match) return value;
+  const whole = BigInt(match[2]!).toLocaleString("en-AU");
+  const fraction = match[3];
+  return `${match[1]}${whole}${fraction && /[1-9]/.test(fraction) ? `.${fraction.padEnd(2, "0")}` : ""}`;
 }
 
 export function buttonRow(buttons: ReadonlyArray<{ id: string; label: string; style?: number }>): OutcomeRow {
@@ -76,6 +78,13 @@ export function buttonRow(buttons: ReadonlyArray<{ id: string; label: string; st
 }
 
 export function outcomeHeading(name: string): string {
+  if (name.startsWith("ux:")) return "The Collective";
+  if (name.startsWith("community:role:") || name.startsWith("community:select:")) return "Choose your roles";
+  if (name.startsWith("session:")) return "Action result";
+  const parts = name.split(":");
+  if (parts[0] === "go") return outcomeHeading(parts.slice(1, 3).join("/"));
+  if (parts.length > 1) return outcomeHeading(parts.slice(0, 2).join("/"));
+  if (MODULE_COPY[name]) return MODULE_COPY[name]!.title;
   return name
     .split(/[:/]/)
     .filter(Boolean)

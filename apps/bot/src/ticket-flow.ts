@@ -19,6 +19,7 @@ import type { TicketReferenceKind } from "@collective/domain";
 import type { DiscordComponentRow } from "./discord.js";
 import { spokenCode } from "./guide.js";
 import { runRoomCommand } from "./season-flow.js";
+import { buttonRow } from "./present.js";
 
 export interface SupportCommand {
   name: string;
@@ -54,7 +55,7 @@ export async function runSupportCommand(db: PrismaClient, command: SupportComman
     }
     return {
       content: "Ticket categories are ready. A category button does not open a ticket until the form is answered, and it does not grant general access.",
-      components: [{ type: 1, components: panel.requests.map((request) => ({ type: 2, style: 1, custom_id: request.customId, label: request.label })) }],
+      components: Array.from({ length: Math.ceil(panel.requests.length / 5) }, (_, i) => buttonRow(panel.requests.slice(i * 5, i * 5 + 5).map((request) => ({ id: request.customId, label: request.label, style: 1 })))),
     };
   }
 
@@ -207,7 +208,7 @@ async function readBook(db: PrismaClient, command: SupportCommand): Promise<{ co
   const dossier = await readPublicDossier(db, command.guildId, command.userId);
   if (command.subcommand === "achievements") {
     const lines = dossier.achievements.map((item) => `**${item.name}**`);
-    return { content: lines.length > 0 ? lines.join("\n") : "Nothing in the book is earned yet. Hidden ones stay hidden." };
+    return { content: lines.length > 0 ? lines.join("\n") : "No achievements earned yet. Hidden achievements remain undisclosed." };
   }
   const lines = dossier.commendations.map((item) => `**${item.category}** — ${item.reason}`);
   return { content: lines.length > 0 ? lines.join("\n") : "No commendation is on the dossier. Leave one with a member, a category, and a reason. It pays nothing." };

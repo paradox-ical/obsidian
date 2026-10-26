@@ -89,9 +89,12 @@ import { runBlackjackCommand } from "./blackjack-flow.js";
 import { runExploreCommand } from "./explore-flow.js";
 import { runContractCommand } from "./contract-flow.js";
 import { runLeaderboardCommand, runPollCommand } from "./season-flow.js";
-import { startDiscordGateway, type DiscordConnection } from "./discord.js";
+import { startDiscordGateway, type DiscordConnection, type DiscordComponentRow } from "./discord.js";
 import { startHealthServer } from "./http.js";
 import { scrubSecrets } from "./redact.js";
+import { customizeRow, followupRows, paginateReply, prepareExperience, type FollowupAction } from "./experience.js";
+import { guideReply } from "./guide.js";
+import { notificationPayload } from "./notifications.js";
 
 export async function startRuntime(role: "bot" | "worker"): Promise<void> {
   const env = loadEnv();
@@ -178,6 +181,33 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
           }
           event.options = {};
         }
+        if (event.kind === "component" && (event.name.startsWith("character:") || event.name.startsWith("combat:"))) {
+          const parent = event.name.startsWith("character:") ? "character" : "combat";
+          const pressed = parent === "character" ? characterPress(event.name) : combatPress(event.name);
+          event.kind = "command"; event.name = parent; event.subcommand = pressed.subcommand;
+          event.options = { ...event.options, ...pressed.options };
+        }
+        if (event.kind === "component" && event.name.startsWith("ticket:open:")) {
+          event.options = { action: "open", category: event.name.slice("ticket:open:".length) };
+          event.name = "support"; event.subcommand = "tickets"; event.kind = "command";
+        }
+        // Every response path shares navigation and pagination. Existing files,
+        // role-panel bindings and reactions continue through untouched.
+        const reply = event.reply;
+        event.reply = async (content, extras) => {
+          const normalized = extras && "bytes" in extras ? { file: extras } : extras;
+          const guided = guideReply(event.name, content, normalized?.components);
+          const customize = customizeRow(event.name, event.subcommand ?? "", event.options);
+          const rows = [...(guided.rows ?? []), ...(customize ? [customize] : [])];
+          const paged = await paginateReply(prisma, event, guided.body, rows);
+          await reply(paged.content, { ...normalized, components: paged.rows });
+        };
+        event.setPresentation?.(event.name, event.subcommand);
+        if (!await prepareExperience(prisma, event)) return;
+        event.kind = event.name.includes(":") ? "component" : "command";
+        event.setPresentation?.(event.name, event.subcommand);
+        const selectedMember = event.options["member"];
+        if (typeof selectedMember === "string" && event.resolveTarget) Object.assign(event, await event.resolveTarget(selectedMember));
         if (event.kind === "command" && event.name === "stats") {
           const stats = await runStatsCommand(prisma, {
             name: event.name,
@@ -189,7 +219,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(stats.content);
+          await event.reply(stats.content, await flowExtras(prisma, event, stats));
           return;
         }
         if (event.kind === "command" && event.name === "contracts") {
@@ -201,7 +231,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(contracts.content);
+          await event.reply(contracts.content, await flowExtras(prisma, event, contracts));
           return;
         }
         if ((event.kind === "command" && event.name === "character") || (event.kind === "component" && event.name.startsWith("character:"))) {
@@ -236,7 +266,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(help.content);
+          await event.reply(help.content, await flowExtras(prisma, event, help));
           return;
         }
         if (event.kind === "command" && event.name === "setup") {
@@ -248,7 +278,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(setup.content);
+          await event.reply(setup.content, await flowExtras(prisma, event, setup));
           return;
         }
         if (event.kind === "command" && event.name === "reply") {
@@ -259,7 +289,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             userId: event.userId,
             roleIds: event.roleIds,
           });
-          await event.reply(reply.content);
+          await event.reply(reply.content, await flowExtras(prisma, event, reply));
           return;
         }
         if (event.kind === "command" && event.name === "inventory") {
@@ -270,7 +300,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(inventory.content);
+          await event.reply(inventory.content, await flowExtras(prisma, event, inventory));
           return;
         }
         if (event.kind === "command" && event.name === "lottery") {
@@ -281,7 +311,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(lottery.content);
+          await event.reply(lottery.content, await flowExtras(prisma, event, lottery));
           return;
         }
         if (event.kind === "command" && event.name === "deaddrop") {
@@ -293,7 +323,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(deadDrop.content);
+          await event.reply(deadDrop.content, await flowExtras(prisma, event, deadDrop));
           return;
         }
         if (event.kind === "command" && event.name === "blackjack") {
@@ -304,7 +334,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(blackjack.content);
+          await event.reply(blackjack.content, await flowExtras(prisma, event, blackjack));
           return;
         }
         if (event.kind === "command" && event.name === "shop") {
@@ -316,7 +346,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(shop.content);
+          await event.reply(shop.content, await flowExtras(prisma, event, shop));
           return;
         }
         if (event.kind === "command" && (["prediction", "contest", "giveaway"].includes(event.name))) {
@@ -329,7 +359,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(activity.content);
+          await event.reply(activity.content, await flowExtras(prisma, event, activity));
           return;
         }
         if (event.kind === "command" && event.name === "explore" && event.subcommand !== "crew") {
@@ -340,7 +370,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(explore.content);
+          await event.reply(explore.content, await flowExtras(prisma, event, explore));
           return;
         }
         if (event.kind === "command" && (["events", "schedule", "crew"].includes(event.name) || (event.name === "explore" && event.subcommand === "crew"))) {
@@ -353,7 +383,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(gathering.content);
+          await event.reply(gathering.content, await flowExtras(prisma, event, gathering));
           return;
         }
         if ((event.kind === "command" && event.name === "publish") || event.name.startsWith("publish:")) {
@@ -366,7 +396,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(publication.content);
+          await event.reply(publication.content, await flowExtras(prisma, event, publication));
           return;
         }
         if ((event.kind === "command" && event.name === "market") || (event.kind === "component" && event.name.startsWith("market:"))) {
@@ -394,7 +424,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(economy.content);
+          await event.reply(economy.content, await flowExtras(prisma, event, economy));
           return;
         }
         if (event.kind === "component" && event.name.startsWith("community:")) {
@@ -411,7 +441,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             credentials: process.env,
             now: new Date(),
           });
-          await event.reply(result.content);
+          await event.reply(result.content, await flowExtras(prisma, event, result));
           return;
         }
         if (event.kind === "command" && ["rank", "profile", "birthday", "invites"].includes(event.name)) {
@@ -437,7 +467,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(result.content);
+          await event.reply(result.content, await flowExtras(prisma, event, result));
           return;
         }
         if (event.kind === "command" && event.name === "community") {
@@ -450,7 +480,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(result.content);
+          await event.reply(result.content, await flowExtras(prisma, event, result));
           return;
         }
         if (event.kind === "command" && event.name === "support") {
@@ -478,7 +508,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             targetRoleIds: event.targetRoleIds,
             now: new Date(),
           });
-          await event.reply(result.content);
+          await event.reply(result.content, await flowExtras(prisma, event, result));
           return;
         }
         if (event.kind === "command" && ["mod", "report", "logs"].includes(event.name)) {
@@ -496,7 +526,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             botPermissions: event.botPermissions,
             now: new Date(),
           });
-          await event.reply(result.content);
+          await event.reply(result.content, await flowExtras(prisma, event, result));
           return;
         }
         if (event.kind === "command" && ["verify", "roles", "accounts", "temproles"].includes(event.name)) {
@@ -528,13 +558,13 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
           now: new Date(),
         });
         if (!routed.handled || routed.access === "denied") {
-          await event.reply("That command is registered, but this build does not carry it out yet.");
+          await event.reply("This control is unavailable, expired or not permitted for your account. Open `/help open` to choose a current action.");
           return;
         }
         await event.reply(
           "body" in routed && routed.body?.status === "ready" && routed.body.report
             ? `Issued ${routed.body.report.marksIssued}, reversed ${routed.body.report.marksReversed}, spent ${routed.body.report.marksSpent}.`
-            : "That action was accepted.",
+            : "The control was acknowledged, but no feature result was returned. Check the current record before retrying.",
         );
       },
     });
@@ -769,10 +799,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                     authorization: `Bot ${env.discord.token}`,
                     "content-type": "application/json",
                   },
-                  body: JSON.stringify({
-                    content: `**A case needs eyes.**\n${payload.caseId}`,
-                    allowed_mentions: { parse: [] },
-                  }),
+                  body: JSON.stringify(notificationPayload("moderation", `Case: **${payload.caseId}**`)),
                 });
                 if (!response.ok) {
                   throw new Error(`Discord moderation alert failed with status ${response.status}.`);
@@ -822,7 +849,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                 const response = await fetch(`https://discord.com/api/v10/channels/${payload.channelId}/messages`, {
                   method: "POST",
                   headers: { authorization: `Bot ${env.discord.token}`, "content-type": "application/json" },
-                  body: JSON.stringify({ content: payload.greeting, allowed_mentions: { parse: [] } }),
+                  body: JSON.stringify(notificationPayload("birthday", payload.greeting)),
                 });
                 if (!response.ok) {
                   throw new Error(`Discord birthday announcement failed with status ${response.status}.`);
@@ -842,10 +869,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                 const response = await fetch(`https://discord.com/api/v10/channels/${payload.channelId}/messages`, {
                   method: "POST",
                   headers: { authorization: `Bot ${env.discord.token}`, "content-type": "application/json" },
-                  body: JSON.stringify({
-                    content: `**Ticket ${payload.number}** has gone quiet. A human reply starts the clock again.`,
-                    allowed_mentions: { parse: [] },
-                  }),
+                  body: JSON.stringify(notificationPayload("ticket", `Ticket **#${payload.number}** has been inactive.`)),
                 });
                 if (!response.ok) {
                   throw new Error(`Discord ticket reminder failed with status ${response.status}.`);
@@ -885,7 +909,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                 const response = await fetch(`https://discord.com/api/v10/channels/${payload.channelId}/messages`, {
                   method: "POST",
                   headers: { authorization: `Bot ${env.discord.token}`, "content-type": "application/json" },
-                  body: JSON.stringify({ content: "This voice room is closing. You will be disconnected.", allowed_mentions: { parse: [] } }),
+                  body: JSON.stringify(notificationPayload("room", "This voice room is closing. Occupants will be disconnected.")),
                 });
                 if (!response.ok) {
                   throw new Error(`Discord room warning failed with status ${response.status}.`);
@@ -912,10 +936,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                     authorization: `Bot ${env.discord.token}`,
                     "content-type": "application/json",
                   },
-                  body: JSON.stringify({
-                    content: `**Someone asked for verification help.**\n${request.userId}\n${request.note}`,
-                    allowed_mentions: { parse: [] },
-                  }),
+                  body: JSON.stringify(notificationPayload("verification", `Member: <@${request.userId}>\n\n${request.note}`)),
                 });
                 if (!response.ok) {
                   throw new Error(`Discord assistance delivery failed with status ${response.status}.`);
@@ -1136,4 +1157,10 @@ export function reportProcessError(error: unknown): void {
   const message = error instanceof Error ? error.message : "process failed";
   process.stderr.write(`${message}\n`);
   process.exit(1);
+}
+
+async function flowExtras(db: Parameters<typeof followupRows>[0], event: Parameters<typeof followupRows>[1], result: { content: string }): Promise<{ components: DiscordComponentRow[] } | undefined> {
+  if ("next" in result && result.next) return { components: await followupRows(db, event, result.next as FollowupAction) };
+  if (!("components" in result) || !Array.isArray(result.components)) return undefined;
+  return { components: result.components as DiscordComponentRow[] };
 }

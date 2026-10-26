@@ -1,3 +1,6 @@
+import { COMMAND_PARENTS } from "@collective/domain";
+import { MODULE_COPY } from "./experience-catalog.js";
+import { homeRows, searchActions } from "./experience.js";
 import {
   actorCan,
   listReplyRules,
@@ -11,45 +14,6 @@ import {
 } from "@collective/db";
 
 import { spokenAmount } from "./present.js";
-
-const HELP: Array<{ name: string; text: string }> = [
-  { name: "help", text: "What a command does, and what you can do next." },
-  { name: "setup", text: "What is still missing. Hours and channels are not invented." },
-  { name: "verify", text: "A captcha, or a request for help. Help does not verify you." },
-  { name: "roles", text: "A role the street offers." },
-  { name: "accounts", text: "A handle you claim, and who can see it." },
-  { name: "temproles", text: "A role lent for a number of days." },
-  { name: "invites", text: "Who you brought in." },
-  { name: "birthday", text: "An optional birthday." },
-  { name: "mod", text: "Cases, warnings, and appeals." },
-  { name: "report", text: "A quiet report to staff." },
-  { name: "logs", text: "The staff book." },
-  { name: "stats", text: "The till, for staff." },
-  { name: "rank", text: "Your standing, and the pocket." },
-  { name: "economy", text: "Marks in, Marks out, and the receipts." },
-  { name: "market", text: "The Ingot exchange. Confirm before anything moves." },
-  { name: "leaderboard", text: "The public boards." },
-  { name: "events", text: "Official nights, and an RSVP." },
-  { name: "schedule", text: "What is coming." },
-  { name: "crew", text: "A crew, a session, or a group looking for people." },
-  { name: "prediction", text: "A call with nothing on it, or a call with Marks." },
-  { name: "contest", text: "Work, a ballot, or a judge." },
-  { name: "giveaway", text: "One free entry, then the draw." },
-  { name: "publish", text: "Drafts live in the admin editor." },
-  { name: "reply", text: "Rules that would answer a phrase. A test does not send the answer." },
-  { name: "lottery", text: "Tickets for the open draw, once a draw time exists." },
-  { name: "deaddrop", text: "The covered board, once an opening hour exists." },
-  { name: "contracts", text: "The daily, weekly, and monthly board." },
-  { name: "combat", text: "A practice fight, the queue, or a challenge." },
-  { name: "character", text: "One of six lives, then the points." },
-  { name: "explore", text: "A timed expedition, or a branching mission." },
-  { name: "inventory", text: "What you carry, craft, break, and trade." },
-  { name: "profile", text: "The dossier, and the bio you can hide." },
-  { name: "shop", text: "The supply shop, Ingots, and member listings." },
-  { name: "blackjack", text: "A table alone, or with company. Price it first." },
-  { name: "support", text: "A ticket, or a room that does not last." },
-  { name: "community", text: "Staff polls." },
-];
 
 const UNMAPPED = [
   "bot-terminal",
@@ -76,16 +40,17 @@ export async function runHelpCommand(
     const wallet = await readMemberWallet(db, input.guildId, input.userId);
     const marks = wallet.marks.status === "available" ? spokenAmount(wallet.marks.available) : "closed";
     const life = sheet.status === "uncreated"
-      ? "You have not taken a life. `/rank profile` puts the six classes on buttons."
-      : `You are a **${sheet.className}**, level ${sheet.level}. The points are \`/character stats\`. A practice fight is \`/combat action\`.`;
+      ? "Choose your character class with `/character open`. Community rank and character progression are separate."
+      : `You are a **${sheet.className}**, level ${sheet.level}. Stat points are \`/character stats\`. A practice fight is \`/combat action\`.`;
     return { content: `**${marks}** Marks on hand.\n\n${life}\n\nAfter that: \`/market pool\`, \`/shop supply\`, \`/explore expedition\`.` };
   }
   const query = typeof input.options["query"] === "string" ? input.options["query"].trim().toLowerCase() : "";
-  const found = HELP.filter((entry) => !query || entry.name.includes(query) || entry.text.toLowerCase().includes(query));
+  const found = searchActions(query);
   return {
-    content: found.length === 0
-      ? "Nothing matches that. Try rank, character, combat, economy, or setup."
-      : found.map((entry) => `**/${entry.name}** — ${entry.text}`).join("\n"),
+    content: query
+      ? found.length ? found.map((entry) => `**/${entry.value}**\n${COMMAND_PARENTS.find((p) => p.name === entry.value.split(" ")[0])?.options.find((o) => o.name === entry.value.split(" ")[1])?.description ?? ""}`).join("\n\n") : "No matching actions. Try a feature name such as trade, ticket, class or birthday."
+      : `**The Collective**\n${MODULE_COPY["help"]!.description}\n\nEvery section has a guided menu. Existing slash shortcuts remain available.`,
+    components: homeRows(),
   };
 }
 
@@ -102,10 +67,10 @@ export async function runSetupCommand(
     `Lottery: ${lotteryLine}`,
     `Dead Drop: ${dropLine}`,
     "Channel posts, prize keys, and provider proofs stay closed until those credentials exist.",
-    "Nothing on this card was invented to fill a blank.",
+    "Review configuration before enabling delivery.",
   ].join("\n");
   if (input.subcommand === "mappings") {
-    return { content: `${checklist}\n\n**Channels**\nThese are not mapped yet:\n${UNMAPPED.map((name) => `- ${name}`).join("\n")}\n\nNo channel was created.` };
+    return { content: `${checklist}\n\n**Channels**\nDestinations to review in the admin configuration:\n${UNMAPPED.map((name) => `- ${name}`).join("\n")}\n\nNo channel was created.` };
   }
   if (input.subcommand === "diagnostics") {
     const staff = (await actorCan(db, { guildId: input.guildId, roleIds: input.roleIds, capability: "statistics" })) === "allowed";
@@ -128,7 +93,7 @@ export async function runSetupCommand(
       ].join("\n"),
     };
   }
-  return { content: `${checklist}\n\nUse **Diagnostics** for the desk, and **Channels** for what is still unmapped. Member play starts at \`/rank profile\`.` };
+  return { content: `${checklist}\n\nUse **Diagnostics** for the desk, and **Channels** for what is still unmapped. Start exploring at \`/rank profile\`.` };
 }
 
 export async function runReplyCommand(

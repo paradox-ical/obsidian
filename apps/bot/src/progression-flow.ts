@@ -34,13 +34,13 @@ export async function runProgressionCommand(
     return {
       content: [
         `**${dossier.rankName ?? "Unranked"}**`,
-        `Level ${dossier.level}. ${open ? "The street has a rank for you, and no life yet." : `You are living the **${sheet.className}**.`}`,
+        `Level ${dossier.level}. ${open ? "Your community rank is separate from your character. No character class is chosen yet." : `Your character class is **${sheet.className}**.`}`,
         "",
         pocket(dossier.wallet),
         "",
         open
-          ? "The six lives are on the buttons. Press one. There is nothing to type."
-          : "The points and the abilities are on the buttons.",
+          ? "Choose a character class below."
+          : "Use the buttons below to view stats and abilities.",
       ].join("\n"),
       components: open ? classChoiceRows(sheet.classes) : lifeNextRows(),
     };
@@ -50,7 +50,7 @@ export async function runProgressionCommand(
     const dossier = await readPublicDossier(db, command.guildId, member);
     const life = dossier.character.status === "ready"
       ? `**${dossier.character.className}**, level ${dossier.character.level}.`
-      : "No life chosen yet.";
+      : "No character class chosen yet.";
     return {
       content: [
         `**${dossier.rankName ?? "Unranked"}** · level ${dossier.level}`,
@@ -164,7 +164,7 @@ export async function runProgressionCommand(
 function pocket(wallet: { marks: { status: string; available?: string }; ingots: { status: string; available?: string } }): string {
   const marks = wallet.marks.status === "available" && wallet.marks.available ? `**${spokenAmount(wallet.marks.available)}** Marks` : wallet.marks.status;
   const ingots = wallet.ingots.status === "available" && wallet.ingots.available ? `**${spokenAmount(wallet.ingots.available)}** Ingots` : wallet.ingots.status;
-  return `**Pocket**\n${marks}\n${ingots}`;
+  return `**Wallet**\n${marks}\n${ingots}`;
 }
 
 function stringOption(command: ProgressionCommand, name: string): string {

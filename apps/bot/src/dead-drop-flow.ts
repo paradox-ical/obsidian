@@ -10,6 +10,7 @@ import {
 } from "@collective/db";
 
 type Options = Record<string, string | boolean | number>;
+import { buttonRow } from "./present.js";
 
 function text(options: Options, key: string): string {
   const value = options[key];
@@ -88,6 +89,7 @@ export async function runDeadDropCommand(
     });
     if (quoted.result === "quoted") {
       return {
+        components: [buttonRow([{ id: `ux:quote:deaddrop:pick:${quoted.quoteId}`, label: "Review this pick", style: 1 }])],
         content: [
           `**${quoted.coordinate}**`,
           `**Price** ${quoted.price}`,

@@ -23,8 +23,8 @@ export function classChoiceRows(classes: ReadonlyArray<{ slug: string; name: str
 
 export function lifeNextRows(): OutcomeRow[] {
   return [buttonRow([
-    { id: "character:stats", label: "The points" },
-    { id: "character:abilities", label: "The abilities" },
+    { id: "character:stats", label: "Stat points" },
+    { id: "character:abilities", label: "Abilities" },
   ])];
 }
 
@@ -49,30 +49,30 @@ export async function runCharacterCommand(
     if (!slug) {
       if (sheet.status === "uncreated") {
         return {
-          content: `Six lives are open. Press one. There is nothing to type.\n\n${sheet.classes.map((item) => `**${item.name}** — ${item.summary}`).join("\n")}\n\n-# Community chat does not grant character points.`,
+          content: `Choose one of six character classes below.\n\n${sheet.classes.map((item) => `**${item.name}** — ${item.summary}`).join("\n")}\n\n-# Community chat does not grant character points.`,
           components: classChoiceRows(sheet.classes),
         };
       }
       return {
-        content: `**${sheet.className}**\nLevel ${sheet.level}. ${sheet.xpToNext} XP until the next level.\n\nThe points and the abilities are on the buttons.`,
+        content: `**${sheet.className}**\nLevel ${sheet.level}. ${sheet.xpToNext} XP until the next level.\n\nUse the buttons below to view stats and abilities.`,
         components: lifeNextRows(),
       };
     }
     if (sheet.status === "ready") {
-      return { content: "That life is already chosen. Changing it costs 15,000 Marks and includes a respec." };
+      return { content: "You already have a character class. Changing it costs 15,000 Marks and includes a respec." };
     }
     const chosen = await chooseClass(db, { guildId: input.guildId, userId: input.userId, classSlug: slug, now: input.now });
     if (chosen.result === "chosen") {
       return {
-        content: `You take up the **${lifeName(sheet, slug)}**.\nLevel ${chosen.level}. ${chosen.unspentPoints} points are still unspent.\n\nThe passive is already working. The points and the abilities are next.`,
+        content: `Your class is now **${lifeName(sheet, slug)}**.\nLevel ${chosen.level}. ${chosen.unspentPoints} points are still unspent.\n\nThe passive is already working. Review your stats and abilities below.`,
         components: lifeNextRows(),
       };
     }
-    return { content: chosen.result === "missing_class" ? "That life is not on the books." : "A class is already chosen. The street does not hand out a second one for free." };
+    return { content: chosen.result === "missing_class" ? "That character class is unavailable." : "You already have a class. Use Change class to review the cost and cooldown." };
   }
   if (sheet.status === "uncreated") {
     return {
-      content: "There is no life on this sheet yet. Press one.\n\n-# Community chat does not grant character points.",
+      content: "Your character has no class yet. Choose one below.\n\n-# Community chat does not grant character points.",
       components: classChoiceRows(sheet.classes),
     };
   }
@@ -103,31 +103,31 @@ export async function runCharacterCommand(
       return { content: `**${statName}** takes ${points}. ${allocated.unspentPoints} points are still unspent.` };
     }
     if (allocated.result === "locked") {
-      return { content: "The points wait. Combat, a queue, a mission, or an expedition has the sheet locked." };
+      return { content: "Stat points wait. Combat, a queue, a mission, or an expedition has the sheet locked." };
     }
-    return { content: allocated.result === "overspent" ? "Those points are not in the pocket." : "Pick strength, agility, endurance, or focus." };
+    return { content: allocated.result === "overspent" ? "You do not have that many unspent stat points." : "Pick strength, agility, endurance, or focus." };
   }
   if (input.subcommand === "abilities") {
     const lines = sheet.abilities.map((ability) => `**${ability.name}**\n${ability.kind} · unlocks at ${ability.unlockLevel} · cooldown ${ability.cooldownTurns}\n${ability.formula}`);
-    return { content: `${lines.join("\n\n") || "This life has not written its abilities yet."}\n\nEquip one with \`/character loadout\` when you want it in a fight.` };
+    return { content: `${lines.join("\n\n") || "No abilities are available for this class yet."}\n\nEquip one with \`/character loadout\` when you want it in a fight.` };
   }
   if (input.subcommand === "respec") {
     const action = text(input.options, "action");
     if (action === "class") {
       const changed = await changeClass(db, { guildId: input.guildId, userId: input.userId, classSlug: text(input.options, "class"), now: input.now });
       if (changed.result === "changed") {
-        return { content: `You take up the **${lifeName(sheet, changed.classSlug)}**.\nLevel ${changed.level}. The respec came with the change. The next class change waits 30 days.` };
+        return { content: `Your class is now **${lifeName(sheet, changed.classSlug)}**.\nLevel ${changed.level}. The respec came with the change. The next class change waits 30 days.` };
       }
       if (changed.result === "unaffordable") {
-        return { content: "A new life costs 15,000 Marks. The pocket does not cover it." };
+        return { content: "Changing class costs 15,000 Marks. Your available balance does not cover it." };
       }
       if (changed.result === "cooling") {
-        return { content: `That door stays shut until ${changed.availableAt}.` };
+        return { content: `Class change is available again at ${changed.availableAt}.` };
       }
       if (changed.result === "locked") {
         return { content: "The sheet is locked while combat, a queue, a mission, or an expedition is open." };
       }
-      return { content: changed.result === "same_class" ? "That is already the life you are living." : "That life is not on the books." };
+      return { content: changed.result === "same_class" ? "That is already your current class." : "That character class is unavailable." };
     }
     if (action === "intro") {
       const reset = await introReset(db, { guildId: input.guildId, userId: input.userId, ...(text(input.options, "class") ? { classSlug: text(input.options, "class") } : {}), now: input.now });
@@ -147,13 +147,13 @@ export async function runCharacterCommand(
     }
     const respec = await respecCharacter(db, { guildId: input.guildId, userId: input.userId, now: input.now });
     if (respec.result === "respec") {
-      return { content: `The points come off the sheet.\n**${respec.unspentPoints}** are unspent. The next respec waits until ${respec.availableAt}.` };
+      return { content: `Your allocated stats have been reset.\n**${respec.unspentPoints}** are unspent. The next respec waits until ${respec.availableAt}.` };
     }
     if (respec.result === "unaffordable") {
-      return { content: "A stat respec costs 5,000 Marks. The pocket does not cover it." };
+      return { content: "A stat respec costs 5,000 Marks. Your available balance does not cover it." };
     }
     if (respec.result === "cooling") {
-      return { content: `The respec stays shut until ${respec.availableAt}.` };
+      return { content: `Stat reset is available again at ${respec.availableAt}.` };
     }
     return { content: "The sheet is locked while combat, a queue, a mission, or an expedition is open." };
   }
@@ -169,7 +169,7 @@ export async function runCharacterCommand(
     }
     const next = sheet.abilities.find((item) => item.slug === ability);
     if (!next) {
-      return { content: "That ability does not belong to this life." };
+      return { content: "That ability is unavailable to your current class." };
     }
     const classSlots = sheet.loadout.filter((item) => item.kind === "class" && item.abilitySlug).map((item) => ({ kind: "class" as const, slug: item.abilitySlug }));
     const gearSlots = sheet.loadout.filter((item) => item.kind === "gear" && item.itemId).map((item) => ({ kind: "gear" as const, itemId: item.itemId }));

@@ -296,3 +296,17 @@ These live checks are blocked until credentials exist and, for command registrat
 - A live mission notice or crew-room channel. Mission state, turn deadlines, recovery, and the room reservation are in PostgreSQL. Without a bot token the notice stays `setup_required` and the room channel stays `pending`. No Discord message id or channel id is invented.
 
 No production guild command write is permitted. A fake directory and an injected `fetch` covered the local boundaries. Missing credentials return `setup_required` and do not count as a successful login.
+
+## Full Discord experience redesign
+
+These rows describe source/local verification. Live Discord rendering and delivery are not implied.
+
+| ID | Requirement | Status | Evidence |
+|---|---|---|---|
+| UX-01 | Inventory every implemented command/action and flow, not only examples | tested | `experience:audit`, `DISCORD_EXPERIENCE_COVERAGE.md`; catalog completeness unit test |
+| UX-02 | Guided entry for all 36 parents; action-specific fields and contextual choices | tested | `experience.test.ts`, original manifest tests; all direct slash paths retained |
+| UX-03 | Consistent outcomes, navigation, complete pagination, attachments and private/public routing | tested | `experience.test.ts`, `discord.test.ts`, `present.test.ts`, `guide.test.ts` |
+| UX-04 | Review, edit, cancel, expiry, ownership and one-use confirmation | tested | `experience.test.ts`, `platform-session.test.ts`; original services retain permissions and transaction rules |
+| UX-05 | Modals, native selects, autocomplete and implemented worker notification paths | tested | `discord.test.ts`, `experience.test.ts`, `notifications.ts`; no live Discord delivery |
+| UX-06 | Existing economy/data/permission rules preserved | tested | No schema or economic-rule changes; existing unit suite retained, plus precise bigint display and session compare-and-set checks. PostgreSQL integration remains a CI/live-environment follow-up. |
+| UX-07 | Live named-test-guild verification of the full experience | blocked | Credentials and explicit named-test-guild instruction are absent; no registration or deployment performed |

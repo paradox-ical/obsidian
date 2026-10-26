@@ -53,7 +53,7 @@ export async function runExploreCommand(
   if (preview.result !== "ready") {
     return { content: "That expedition cannot be previewed." };
   }
-  return { content: `${region} ${difficulty}. Access ${preview.access}. Slot ${preview.slot}. Cooldown ${preview.cooldown}. ${preview.tier.xp} XP and ${preview.tier.marks} Marks before caps. ${preview.enemy}. ${preview.remaining[0]}` };
+  return { next: { label: "Prepare this expedition", subcommand: "expedition", options: { ...input.options, action: "start", region, difficulty } }, content: `${region} ${difficulty}. Access ${preview.access}. Slot ${preview.slot}. Cooldown ${preview.cooldown}. ${preview.tier.xp} XP and ${preview.tier.marks} Marks before caps. ${preview.enemy}. ${preview.remaining[0]}` };
 }
 
 async function runMission(
@@ -103,7 +103,7 @@ async function runMission(
   if (preview.result !== "ready") {
     return { content: "That mission cannot be previewed." };
   }
-  return { content: `${preview.name}. Access ${preview.access}. Recovery ${preview.recovery}. ${preview.summary}` };
+  return { next: { label: "Prepare this mission", subcommand: "mission", options: { ...input.options, action: "start" } }, content: `${preview.name}. Access ${preview.access}. Recovery ${preview.recovery}. ${preview.summary}` };
 }
 
 function text(options: Record<string, string | boolean | number>, key: string): string {

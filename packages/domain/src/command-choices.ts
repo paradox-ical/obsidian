@@ -401,6 +401,7 @@ export const COMMAND_CHOICES: Record<string, readonly CommandChoice[]> = {
     ["clear", "Clear"],
   ]),
   "support.tickets.action": text([
+    ["panel", "Show ticket categories"],
     ["open", "Open"],
     ["list", "List"],
     ["close", "Close"],
@@ -408,6 +409,7 @@ export const COMMAND_CHOICES: Record<string, readonly CommandChoice[]> = {
     ["claim", "Claim"],
     ["transfer", "Transfer"],
     ["note", "Add a note"],
+    ["message", "Add a ticket message"],
     ["transcript", "Transcript"],
     ["link", "Link a record"],
   ]),
@@ -424,6 +426,9 @@ export const COMMAND_CHOICES: Record<string, readonly CommandChoice[]> = {
     ["claim", "Claim"],
     ["transfer", "Transfer"],
     ["hold", "Hold"],
+    ["invite", "Invite a member"],
+    ["lock", "Lock the room"],
+    ["rename", "Rename the room"],
   ]),
   "support.rooms.kind": text([
     ["voice", "Voice"],
@@ -438,7 +443,6 @@ export const COMMAND_CHOICES: Record<string, readonly CommandChoice[]> = {
   "community.polls.kind": text([
     ["single", "One choice"],
     ["multiple", "Several choices"],
-    ["suggestion", "Suggestion"],
   ]),
 };
 

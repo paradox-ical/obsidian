@@ -188,7 +188,7 @@ export async function runCommunityCommand(
       reason: stringOption(command, "reason"),
       now: command.now,
     });
-    return { content: granted.result === "granted" ? "The role is lent. It expires on its own." : spokenCode(granted.result) };
+    return { content: granted.result === "granted" ? "Temporary role granted. It will expire automatically." : spokenCode(granted.result) };
   }
 
   if (command.name === "temproles" && command.subcommand === "expire") {
@@ -280,13 +280,13 @@ export async function runPanelReaction(
 async function showPanel(db: PrismaClient, command: CommunityCommand): Promise<CommunityReply> {
   const panels = await listRolePanels(db, command.guildId);
   const requested = stringOption(command, "name");
-  const chosen = requested ? panels.filter((panel) => panel.name === requested) : panels;
+  const chosen = requested ? panels.filter((panel) => panel.name === requested || panel.id === requested) : panels;
   if (chosen.length !== 1) {
     const first = chosen[0];
     if (!first) {
       return { content: "No role panels are published." };
     }
-    return { content: `Choose a panel with /roles panel: ${chosen.map((panel) => panel.name).join(", ")}.` };
+    return { content: "Choose a role panel below.", components: [{ type: 1, components: [{ type: 3, custom_id: "ux:role-panel", placeholder: "Choose a role panel", min_values: 1, max_values: 1, options: chosen.slice(0, 25).map((panel) => ({ label: panel.name.slice(0, 100), value: panel.id })) }] }] };
   }
   const panel = chosen[0];
   if (!panel) {
@@ -295,7 +295,10 @@ async function showPanel(db: PrismaClient, command: CommunityCommand): Promise<C
   const presentation = panelPresentation({
     panelId: panel.id,
     name: panel.name,
-    mode: panel.mode,
+    // Slash results are private. Discord cannot attach reactions to ephemeral
+    // messages, so expose the same choices as a select here. Existing public
+    // reaction panels and their stored bindings retain their original mode.
+    mode: panel.mode === "reaction" ? "select" : panel.mode,
     selection: panel.selection,
     options: panel.options,
   });

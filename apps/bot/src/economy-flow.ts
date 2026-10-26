@@ -50,7 +50,7 @@ function walletText(wallet: Awaited<ReturnType<typeof readMemberWallet>>): strin
     "**Ingots**",
     ingots,
     "",
-    "-# The pocket is public. A life, if you have not taken one, is on `/character class`.",
+    "-# Wallet balances are public. Choose your character class with `/character class`.",
   ].join("\n");
 }
 
@@ -62,11 +62,11 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
   if (command.subcommand === "history") {
     const staff = (await actorCan(db, { guildId: command.guildId, roleIds: command.roleIds, capability: "economy_operations" })) === "allowed";
     if (member !== command.userId && !staff) {
-      return { content: "Your own receipts are open. Another member's history needs the economy operations role." };
+      return { content: "Your own receipts are open. Another member's history requires Economy operations access." };
     }
     const receipts = await listReceipts(db, { guildId: command.guildId, userId: member, audience: staff ? "staff" : "member" });
     if (receipts.length === 0) {
-      return { content: "The receipt book is empty. Transfers, awards, and staff adjustments will show up here." };
+      return { content: "No transactions yet. Transfers, awards, and staff adjustments will show up here." };
     }
     return {
       content: receipts
@@ -91,7 +91,7 @@ export async function runEconomyCommand(db: PrismaClient, command: EconomyComman
       return { content: `**${moved.amount}** Marks changed hands.\n\n-# This moved Marks that already existed. Nothing new was minted.` };
     }
     if (moved.result === "insufficient") {
-      return { content: "The pocket does not cover that transfer. Nothing was moved." };
+      return { content: "Your available balance does not cover that transfer. Nothing was moved." };
     }
     return { content: `The transfer did not go through (${moved.result}). Nothing was moved.` };
   }
@@ -190,7 +190,7 @@ function adjustmentSentence(result: string, action: string, amount: number): str
       return `Removed ${amount} Marks. The reason is stored on the staff receipt.`;
     }
     if (action === "set") {
-      return `Set the available balance from ${amount} Marks. The reason is stored on the staff receipt.`;
+      return `Set the available balance to ${amount} Marks. The reason is stored on the staff receipt.`;
     }
     return `Added ${amount} Marks. The reason is stored on the staff receipt.`;
   }
