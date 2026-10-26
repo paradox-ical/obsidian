@@ -38,8 +38,7 @@ export async function runGatheringCommand(
   const action = text(input.options, "action");
   const actor = { guildId: input.guildId, actorUserId: input.userId, actorRoleIds: input.roleIds, now: input.now };
   if (input.name === "explore" && input.subcommand === "crew") {
-    const mission = await requestCrewMission(db, { guildId: input.guildId, crewId: text(input.options, "crew") });
-    return { content: mission.result === "missing" ? "That crew was not found. RPG missions are not built." : "Crew RPG missions are not built. There is no second crew system." };
+    return { content: crewMissionText(await requestCrewMission(db, { guildId: input.guildId, crewId: text(input.options, "crew"), now: input.now })) };
   }
   if (input.name === "events" && input.subcommand === "rsvp") {
     const response = text(input.options, "response");
@@ -166,14 +165,7 @@ async function manageCrew(
     return gatheringText((await disbandCrew(db, { ...actor, crewId })).result);
   }
   if (action === "mission") {
-    const mission = await requestCrewMission(db, { guildId: input.guildId, crewId });
-    if (mission.result === "short") {
-      return "A crew mission needs two to five members. Each member must meet the region level.";
-    }
-    if (mission.result === "ready") {
-      return `Crew mission ${mission.missionId} is ${mission.status}. ${mission.rules} The notice is not posted.`;
-    }
-    return gatheringText(mission.result);
+    return crewMissionText(await requestCrewMission(db, { guildId: input.guildId, crewId, now: input.now }));
   }
   return "Choose create, officer, transfer, disband, or mission.";
 }
@@ -229,6 +221,20 @@ async function manageSession(
   return "Choose create, join, approve, ready, attend, room, or list.";
 }
 
+function crewMissionText(mission: { result: string; missionId?: string; status?: string; rules?: unknown }): string {
+  if (mission.result === "missing") {
+    return "That crew was not found, or it is not active. A mission needs two to five members. Nothing was opened.";
+  }
+  if (mission.result === "short") {
+    return "A crew mission needs two to five members. Each member must meet the region level. Nothing was opened.";
+  }
+  if (mission.result === "ready") {
+    const rules = Array.isArray(mission.rules) ? mission.rules.join("\n") : typeof mission.rules === "string" ? mission.rules : "";
+    return `**The crew mission is ${mission.status ?? "forming"}.**\n${mission.missionId ?? ""}\n${rules}\n\n-# Nothing was posted in a channel.`;
+  }
+  return gatheringText(mission.result);
+}
+
 function gatheringText(result: string): string {
   if (result === "denied") return "That action needs the event management capability or crew leadership.";
   if (result === "maintenance") return "Events are in maintenance.";
@@ -244,7 +250,7 @@ function gatheringText(result: string): string {
   if (result === "appointed") return "Officer appointed.";
   if (result === "disbanded") return "The crew is disbanded.";
   if (result === "ready") return "Readiness recorded.";
-  if (result === "module_not_built") return "Crew RPG missions are not built. There is no second crew system.";
+  if (result === "module_not_built") return "That crew job is not available. The crew itself is unchanged.";
   if (result === "setup_required") return "Discord delivery is setup-required.";
   return "That gathering action did not complete.";
 }

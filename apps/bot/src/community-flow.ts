@@ -18,6 +18,8 @@ import {
 } from "@collective/db";
 import { captchaAnswerRow, panelPresentation, type DiscordComponentRow, type NativeMemberState, type RoleDescriptor } from "@collective/domain";
 
+import { spokenCode } from "./guide.js";
+
 export interface CommunityCommand {
   name: string;
   subcommand?: string;
@@ -77,7 +79,7 @@ export async function runCommunityCommand(
       answer,
       now: command.now,
     });
-    return { content: submitted.result === "verified" ? "You are verified." : `CAPTCHA result: ${submitted.result}.` };
+    return { content: submitted.result === "verified" ? "You are verified." : `That answer was not accepted. ${spokenCode(submitted.result)}` };
   }
 
   if (command.name === "verify" && command.subcommand === "assistance") {
@@ -162,7 +164,7 @@ export async function runCommunityCommand(
       provider: stringOption(command, "provider"),
       visibility: stringOption(command, "visibility"),
     });
-    return { content: `Privacy result: ${updated.result}.` };
+    return { content: updated.result === "updated" ? "Who can see that handle has changed." : spokenCode(updated.result) };
   }
 
   if (command.name === "accounts" && command.subcommand === "unlink") {
@@ -172,7 +174,7 @@ export async function runCommunityCommand(
       provider: stringOption(command, "provider"),
       now: command.now,
     });
-    return { content: `Unlink result: ${removed.result}.` };
+    return { content: removed.result === "unlinked" ? "That handle is no longer linked." : spokenCode(removed.result) };
   }
 
   if (command.name === "temproles" && (command.subcommand === "grant" || command.subcommand === "renew")) {
@@ -186,7 +188,7 @@ export async function runCommunityCommand(
       reason: stringOption(command, "reason"),
       now: command.now,
     });
-    return { content: `Temporary role result: ${granted.result}.` };
+    return { content: granted.result === "granted" ? "The role is lent. It expires on its own." : spokenCode(granted.result) };
   }
 
   if (command.name === "temproles" && command.subcommand === "expire") {
@@ -201,7 +203,7 @@ export async function runCommunityCommand(
       reason: stringOption(command, "reason"),
       now: command.now,
     });
-    return { content: `Expiry result: ${updated.result}.` };
+    return { content: updated.result === "updated" ? "The expiry is set." : spokenCode(updated.result) };
   }
 
   if (command.name === "verify" && command.subcommand === "rejoin") {
@@ -211,7 +213,7 @@ export async function runCommunityCommand(
       native: command.native,
       now: command.now,
     });
-    return { content: `Rejoin result: ${restored.result}.` };
+    return { content: restored.result === "restored" ? "Your place on the street was checked again." : spokenCode(restored.result) };
   }
 
   return { content: "That community control is not available on this command." };

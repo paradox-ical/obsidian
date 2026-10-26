@@ -6,6 +6,7 @@ import {
   createPoll,
   createRoom,
   noteRoomPresence,
+  readDistribution,
   readLeaderboard,
   readPollResults,
   readSeasonArchive,
@@ -40,10 +41,43 @@ export async function runLeaderboardCommand(db: PrismaClient, command: SeasonCom
 }
 
 export async function runPollCommand(db: PrismaClient, command: SeasonCommand): Promise<{ content: string }> {
+  if (command.subcommand === "updates" || command.subcommand === "manage") {
+    const desk = await readDistribution(db, { guildId: command.guildId, actorRoleIds: command.roleIds });
+    if (desk.result !== "ok") {
+      return { content: desk.result === "denied" ? "The community desk is for staff with publications." : "The community desk is not open." };
+    }
+    if (command.subcommand === "updates") {
+      const sources = desk.feeds.map((feed) => `**${feed.name}** · ${feed.status}${feed.destination ? "" : " · no destination"}`);
+      const items = desk.items.slice(0, 8).map((item) => `**${item.title}** · ${item.category} · ${item.status}`);
+      return {
+        content: [
+          sources.length ? sources.join("\n") : "No feed is stored. A feed is saved on the admin desk, and this command does not invent a post.",
+          "",
+          items.length ? items.join("\n") : "No update has been recorded.",
+          "",
+          "-# Nothing was posted in a channel.",
+        ].join("\n"),
+      };
+    }
+    return {
+      content: [
+        `Series: ${desk.series.length}`,
+        `Pins: ${desk.pins.length}`,
+        `Stickies: ${desk.stickies.length}`,
+        `Reply rules: ${desk.rules.length}`,
+        `Alerts: ${desk.alerts.length}`,
+        "",
+        "Drafts, review, and the clock live on the admin desk. This command does not post.",
+      ].join("\n"),
+    };
+  }
   if (command.subcommand !== "polls") {
-    return { content: "Game updates and community management are not built yet." };
+    return { content: "Polls, updates, and the desk are the community commands." };
   }
   const action = stringOption(command, "action");
+  if (!action) {
+    return { content: "Pick create, vote, results, or close. A vote needs the poll and a choice. Nothing was saved." };
+  }
   if (action === "create") {
     const created = await createPoll(db, {
       guildId: command.guildId,
@@ -166,14 +200,12 @@ function renderBoard(board: { result: string; category?: string; availability?: 
     return "That season archive was not found.";
   }
   if (board.availability === "module_not_built") {
-    if (board.label === "estimated") {
-      return "Estimated wealth is not built yet. It would be labelled estimated and price-sensitive. No balance is shown.";
-    }
-    return `${board.category ?? "That"} rankings are not built yet. No balance is shown.`;
+    return `**${board.category ?? "That board"}** is not ranked here. No balance is shown.`;
   }
-  const lines = (board.rows ?? []).map((row) => `${row.position}. ${row.userId}: ${row.score}`);
-  const own = board.ownPosition ? ` Your position is ${board.ownPosition}.` : "";
-  return `${lines.join(" ") || "No standings yet."}${own}`;
+  const lines = (board.rows ?? []).map((row) => `**${row.position}.** ${row.userId} · ${row.score}`);
+  const own = board.ownPosition ? `You are **${board.ownPosition}**.` : "You are not on this page.";
+  const label = board.label === "estimated" ? "Estimated wealth. The figure is a guess, and it moves with price." : "";
+  return [label, lines.join("\n") || "No standings yet.", own].filter(Boolean).join("\n");
 }
 
 function stringOption(command: SeasonCommand, name: string): string {

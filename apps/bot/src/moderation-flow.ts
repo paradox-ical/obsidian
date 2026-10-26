@@ -13,6 +13,8 @@ import {
 } from "@collective/db";
 import { MODERATION_ACTIONS, type ModerationAction } from "@collective/domain";
 
+import { spokenCode } from "./guide.js";
+
 export interface ModerationCommand {
   name: string;
   subcommand?: string;
@@ -95,7 +97,7 @@ export async function runModerationCommand(db: PrismaClient, command: Moderation
         reason: stringOption(command, "reason") || "Staff reversed the case.",
         now: command.now,
       });
-      return { content: reversed.result === "denied" ? "You cannot reverse cases." : `Case result: ${reversed.result}.` };
+      return { content: reversed.result === "denied" ? "You cannot reverse cases." : reversed.result === "reversed" ? "The case is reversed." : spokenCode(reversed.result) };
     }
     const cases = await listCases(db, { guildId: command.guildId, actorRoleIds: command.roleIds });
     if (cases.result === "denied") {
@@ -122,7 +124,7 @@ export async function runModerationCommand(db: PrismaClient, command: Moderation
         reason: stringOption(command, "reason") || "Staff accepted the appeal.",
         now: command.now,
       });
-      return { content: resolved.result === "denied" ? "You cannot resolve appeals." : `Appeal result: ${resolved.result}.` };
+      return { content: resolved.result === "denied" ? "You cannot resolve appeals." : resolved.result === "accepted" ? "The appeal is accepted." : spokenCode(resolved.result) };
     }
     const submitted = await submitAppeal(db, {
       guildId: command.guildId,

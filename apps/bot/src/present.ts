@@ -15,7 +15,7 @@ const WARNING = 0xc47a6a;
 
 export interface OutcomeRow {
   type: 1;
-  components: ReadonlyArray<Record<string, unknown>>;
+  components: Array<Record<string, unknown>>;
 }
 
 export function presentOutcome(input: {
@@ -42,7 +42,7 @@ export function presentOutcome(input: {
   }
   inner.push(
     { type: ComponentType.Separator, divider: false, spacing: SeparatorSpacingSize.Small },
-    { type: ComponentType.TextDisplay, content: "-# The Collective · keep the receipt" },
+    { type: ComponentType.TextDisplay, content: "-# The Collective" },
   );
   const container: APIContainerComponent = {
     type: ComponentType.Container,
@@ -50,6 +50,29 @@ export function presentOutcome(input: {
     components: inner.slice(0, 10),
   };
   return { flags: COMPONENTS_V2, components: [container] };
+}
+
+export function spokenAmount(value: string): string {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return value;
+  }
+  if (Number.isInteger(amount)) {
+    return amount.toLocaleString("en-AU");
+  }
+  return amount.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function buttonRow(buttons: ReadonlyArray<{ id: string; label: string; style?: number }>): OutcomeRow {
+  return {
+    type: 1,
+    components: buttons.slice(0, 5).map((button) => ({
+      type: 2,
+      style: button.style ?? 2,
+      custom_id: button.id,
+      label: button.label.slice(0, 80),
+    })),
+  };
 }
 
 export function outcomeHeading(name: string): string {

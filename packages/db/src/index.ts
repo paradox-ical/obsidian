@@ -239,6 +239,7 @@ export {
   resumeAnnouncement,
   runAnnouncementSeries,
   saveFeedSource,
+  listReplyRules,
   saveReplyRule,
   saveSticky,
   sweepAnnouncementExpiry,

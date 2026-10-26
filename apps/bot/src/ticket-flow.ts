@@ -6,8 +6,10 @@ import {
   exportTicket,
   linkTicketReference,
   listTickets,
+  givePeerCommendation,
   openTicket,
   publishTicketPanel,
+  readPublicDossier,
   reopenTicket,
   transferTicket,
   type PrismaClient,
@@ -15,6 +17,7 @@ import {
 import type { TicketReferenceKind } from "@collective/domain";
 
 import type { DiscordComponentRow } from "./discord.js";
+import { spokenCode } from "./guide.js";
 import { runRoomCommand } from "./season-flow.js";
 
 export interface SupportCommand {
@@ -33,7 +36,7 @@ export async function runSupportCommand(db: PrismaClient, command: SupportComman
     return runRoomCommand(db, command);
   }
   if (command.subcommand === "achievements" || command.subcommand === "commendations") {
-    return { content: "Achievements and commendations are not built yet." };
+    return readBook(db, command);
   }
   if (command.subcommand !== "tickets") {
     return { content: "That support control is not available on this command." };
@@ -93,15 +96,15 @@ export async function runSupportCommand(db: PrismaClient, command: SupportComman
 
   if (action === "close") {
     const closed = await closeTicket(db, { guildId: command.guildId, ticketId, actorUserId: command.userId, actorRoleIds: command.roleIds, reason, now: command.now });
-    return { content: closed.result === "denied" ? "You cannot close that ticket." : `Close result: ${closed.result}.` };
+    return { content: closed.result === "denied" ? "You cannot close that ticket." : closed.result === "closed" ? "The ticket is closed." : spokenCode(closed.result) };
   }
   if (action === "reopen") {
     const reopened = await reopenTicket(db, { guildId: command.guildId, ticketId, actorUserId: command.userId, actorRoleIds: command.roleIds, reason, now: command.now });
-    return { content: reopened.result === "denied" ? "You cannot reopen that ticket." : `Reopen result: ${reopened.result}.` };
+    return { content: reopened.result === "denied" ? "You cannot reopen that ticket." : reopened.result === "reopened" ? "The ticket is open again." : spokenCode(reopened.result) };
   }
   if (action === "claim") {
     const claimed = await claimTicket(db, { guildId: command.guildId, ticketId, actorUserId: command.userId, actorRoleIds: command.roleIds, reason });
-    return { content: claimed.result === "denied" ? "You cannot claim that ticket." : `Claim result: ${claimed.result}.` };
+    return { content: claimed.result === "claim" ? "The ticket is yours." : claimed.result === "already_claimed" || claimed.result === "occupied" ? "Someone already has that ticket." : spokenCode(claimed.result) };
   }
   if (action === "transfer") {
     if (command.targetRoleIds.length === 0) {
@@ -116,7 +119,7 @@ export async function runSupportCommand(db: PrismaClient, command: SupportComman
       targetRoleIds: command.targetRoleIds,
       reason,
     });
-    return { content: moved.result === "denied" ? "The ticket was not transferred." : `Transfer result: ${moved.result}.` };
+    return { content: moved.result === "transfer" ? "The ticket has a new owner." : moved.result === "already_assigned" ? "That member already has the ticket." : spokenCode(moved.result) };
   }
   if (action === "note") {
     const noted = await addStaffNote(db, { guildId: command.guildId, ticketId, actorUserId: command.userId, actorRoleIds: command.roleIds, body: note, now: command.now });
@@ -166,6 +169,48 @@ function renderTranscript(messages: ReadonlyArray<{ visibility: string; body: st
     return "The transcript is empty.";
   }
   return messages.map((message) => `${message.visibility}: ${message.body ?? message.contentLabel}`).join("\n");
+}
+
+async function readBook(db: PrismaClient, command: SupportCommand): Promise<{ content: string }> {
+  if (command.subcommand === "commendations" && stringOption(command, "member")) {
+    const category = stringOption(command, "category");
+    const reason = stringOption(command, "reason");
+    if (!category.trim() || !reason.trim()) {
+      return { content: "A commendation needs a category and a reason. Nothing was written, and no Marks moved." };
+    }
+    try {
+      const given = await givePeerCommendation(db, {
+        guildId: command.guildId,
+        fromUserId: command.userId,
+        toUserId: stringOption(command, "member"),
+        category,
+        reason,
+        now: command.now,
+      });
+      if (given.result === "recorded") {
+        return { content: "The commendation is recorded. It pays nothing." };
+      }
+      if (given.result === "self") {
+        return { content: "You cannot commend yourself. Nothing was written." };
+      }
+      if (given.result === "cooldown") {
+        return { content: "You already left one recently. Nothing was written." };
+      }
+      if (given.result === "pair_limit") {
+        return { content: "You have already commended that member enough times in this window." };
+      }
+      return { content: "That commendation was not recorded. No Marks moved." };
+    } catch (error) {
+      return { content: error instanceof Error ? error.message : "That commendation was not recorded." };
+    }
+  }
+  const dossier = await readPublicDossier(db, command.guildId, command.userId);
+  if (command.subcommand === "achievements") {
+    const lines = dossier.achievements.map((item) => `**${item.name}**`);
+    return { content: lines.length > 0 ? lines.join("\n") : "Nothing in the book is earned yet. Hidden ones stay hidden." };
+  }
+  const lines = dossier.commendations.map((item) => `**${item.category}** — ${item.reason}`);
+  return { content: lines.length > 0 ? lines.join("\n") : "No commendation is on the dossier. Leave one with a member, a category, and a reason. It pays nothing." };
 }
 
 function referenceKind(command: SupportCommand): TicketReferenceKind {

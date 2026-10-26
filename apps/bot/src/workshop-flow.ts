@@ -45,7 +45,7 @@ export async function runWorkshopCommand(
   if (input.subcommand === "materials") {
     const rows = await readMaterials(db, { guildId: input.guildId, userId: input.userId });
     const shown = rows.length > 0 ? rows.map((row) => `${row.slug} ${row.quantity}`).join(", ") : "No materials yet.";
-    return { content: `${shown} Crates are not built. The notice is not posted.` };
+    return { content: `${shown}\n\nCrates are \`/inventory crates\`. The notice is not posted.` };
   }
   if (input.subcommand === "trade") {
     return { content: await tradeText(db, input, action, itemId) };
@@ -99,7 +99,7 @@ export async function runWorkshopCommand(
     }
     return { content: `${preview.slug} can roll ${preview.min} to ${preview.max}. This reroll costs ${preview.marks} Marks.` };
   }
-  return { content: "Crates are not built." };
+  return { content: "Name the item, or pick the action. Crates are `/inventory crates`." };
 }
 
 async function tradeText(db: PrismaClient, input: { options: Options; guildId: string; userId: string; now: Date }, action: string, itemId: string) {

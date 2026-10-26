@@ -79,8 +79,9 @@ import { runMarketCommand } from "./market-flow.js";
 import { runPublishCommand } from "./publish-flow.js";
 import { runGatheringCommand } from "./gathering-flow.js";
 import { runActivityCommand } from "./activity-flow.js";
-import { runCharacterCommand } from "./character-flow.js";
-import { runCombatCommand, runInventoryCommand } from "./combat-flow.js";
+import { characterPress, runCharacterCommand } from "./character-flow.js";
+import { combatPress, runCombatCommand, runInventoryCommand } from "./combat-flow.js";
+import { runHelpCommand, runReplyCommand, runSetupCommand } from "./desk-flow.js";
 import { runShopCommand } from "./workshop-flow.js";
 import { runLotteryCommand } from "./lottery-flow.js";
 import { runDeadDropCommand } from "./dead-drop-flow.js";
@@ -168,6 +169,15 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
           await event.reply("That action is unavailable.");
           return;
         }
+        if (event.kind === "component" && event.name.startsWith("go:")) {
+          const parts = event.name.split(":");
+          event.kind = "command";
+          event.name = parts[1] || "help";
+          if (parts[2]) {
+            event.subcommand = parts[2];
+          }
+          event.options = {};
+        }
         if (event.kind === "command" && event.name === "stats") {
           const stats = await runStatsCommand(prisma, {
             name: event.name,
@@ -194,26 +204,62 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
           await event.reply(contracts.content);
           return;
         }
-        if (event.kind === "command" && event.name === "character") {
+        if ((event.kind === "command" && event.name === "character") || (event.kind === "component" && event.name.startsWith("character:"))) {
+          const pressed = event.kind === "component" ? characterPress(event.name) : null;
           const character = await runCharacterCommand(prisma, {
-            ...(event.subcommand ? { subcommand: event.subcommand } : {}),
-            options: event.options,
+            ...((pressed?.subcommand ?? event.subcommand) ? { subcommand: pressed?.subcommand ?? event.subcommand } : {}),
+            options: pressed ? { ...event.options, ...pressed.options } : event.options,
             guildId: event.guildId,
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(character.content);
+          await event.reply(character.content, character.components ? { components: character.components } : undefined);
           return;
         }
-        if (event.kind === "command" && event.name === "combat") {
+        if ((event.kind === "command" && event.name === "combat") || (event.kind === "component" && event.name.startsWith("combat:"))) {
+          const pressed = event.kind === "component" ? combatPress(event.name) : null;
           const combat = await runCombatCommand(prisma, {
+            ...((pressed?.subcommand ?? event.subcommand) ? { subcommand: pressed?.subcommand ?? event.subcommand } : {}),
+            options: pressed ? { ...event.options, ...pressed.options } : event.options,
+            guildId: event.guildId,
+            userId: event.userId,
+            now: new Date(),
+          });
+          await event.reply(combat.content, combat.components ? { components: combat.components } : undefined);
+          return;
+        }
+        if (event.kind === "command" && event.name === "help") {
+          const help = await runHelpCommand(prisma, {
             ...(event.subcommand ? { subcommand: event.subcommand } : {}),
             options: event.options,
             guildId: event.guildId,
             userId: event.userId,
             now: new Date(),
           });
-          await event.reply(combat.content);
+          await event.reply(help.content);
+          return;
+        }
+        if (event.kind === "command" && event.name === "setup") {
+          const setup = await runSetupCommand(prisma, {
+            ...(event.subcommand ? { subcommand: event.subcommand } : {}),
+            options: event.options,
+            guildId: event.guildId,
+            userId: event.userId,
+            roleIds: event.roleIds,
+            now: new Date(),
+          });
+          await event.reply(setup.content);
+          return;
+        }
+        if (event.kind === "command" && event.name === "reply") {
+          const reply = await runReplyCommand(prisma, {
+            ...(event.subcommand ? { subcommand: event.subcommand } : {}),
+            options: event.options,
+            guildId: event.guildId,
+            userId: event.userId,
+            roleIds: event.roleIds,
+          });
+          await event.reply(reply.content);
           return;
         }
         if (event.kind === "command" && event.name === "inventory") {
@@ -378,7 +424,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
             roleIds: event.roleIds,
             now: new Date(),
           });
-          await event.reply(result.content);
+          await event.reply(result.content, result.components ? { components: result.components } : undefined);
           return;
         }
         if (event.kind === "command" && event.name === "leaderboard") {
@@ -724,7 +770,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                     "content-type": "application/json",
                   },
                   body: JSON.stringify({
-                    content: `Moderation alert ${payload.caseId}.`,
+                    content: `**A case needs eyes.**\n${payload.caseId}`,
                     allowed_mentions: { parse: [] },
                   }),
                 });
@@ -797,7 +843,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                   method: "POST",
                   headers: { authorization: `Bot ${env.discord.token}`, "content-type": "application/json" },
                   body: JSON.stringify({
-                    content: `Ticket ${payload.number} has had no human reply.`,
+                    content: `**Ticket ${payload.number}** has gone quiet. A human reply starts the clock again.`,
                     allowed_mentions: { parse: [] },
                   }),
                 });
@@ -867,7 +913,7 @@ export async function startRuntime(role: "bot" | "worker"): Promise<void> {
                     "content-type": "application/json",
                   },
                   body: JSON.stringify({
-                    content: `Verification assistance ${request.id} from ${request.userId}: ${request.note}`,
+                    content: `**Someone asked for verification help.**\n${request.userId}\n${request.note}`,
                     allowed_mentions: { parse: [] },
                   }),
                 });

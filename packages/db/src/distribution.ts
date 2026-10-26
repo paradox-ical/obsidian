@@ -794,6 +794,21 @@ function viewOf(rule: {
   };
 }
 
+export async function listReplyRules(
+  db: Root,
+  input: { guildId: string; actorRoleIds: readonly string[] },
+) {
+  const gated = await gate(db, input);
+  if (gated !== "ok") {
+    return { result: gated, rules: [] as Array<{ name: string; status: string; pattern: string }> };
+  }
+  const rows = await db.replyRule.findMany({ where: { guildId: input.guildId }, orderBy: { priority: "desc" } });
+  return {
+    result: "ready" as const,
+    rules: rows.map((row) => ({ name: row.name, status: row.status, pattern: row.pattern })),
+  };
+}
+
 export async function testReplyRule(
   db: Root,
   input: { guildId: string; text: string; source: "message" | "interaction"; channelId: string; roleIds: string[]; authorIsBot: boolean; pick: number; actorRoleIds: readonly string[] },

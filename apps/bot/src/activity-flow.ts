@@ -210,7 +210,7 @@ async function contestCommand(
       return "The tie stays published. The prize was not given to one entry.";
     }
     if (awarded.result === "awarded" && "fulfilment" in awarded && awarded.fulfilment === "shop_pending") {
-      return "Award recorded. Shop key delivery is not built, and no key was created.";
+      return "Award recorded. The key is still waiting on the shop. No key was created or posted.";
     }
     if (awarded.result === "awarded" && "detail" in awarded && awarded.detail === "A Steam key is in the private inbox. It was not posted.") {
       return "Award recorded. The Steam key is in the private inbox and was not posted.";
@@ -267,7 +267,7 @@ async function giveawayCommand(
   if (action === "claim") {
     const claimed = await claimGiveaway(db, { guildId: input.guildId, drawId: text(input.options, "draw"), userId: input.userId, now: input.now });
     if (claimed.result === "claimed" && claimed.fulfilment === "shop_pending") {
-      return "Claim recorded. Shop key delivery is not built, and no key was created.";
+      return "Claim recorded. The key is still waiting on the shop. No key was created or posted.";
     }
     if (claimed.result === "claimed" && claimed.detail === "A Steam key is in the private inbox. It was not posted.") {
       return "Claim recorded. The Steam key is in the private inbox and was not posted.";
@@ -293,7 +293,7 @@ function activityText(result: string): string {
   if (result === "locked") return "That prediction is locked. Outcomes and stakes stay as they are.";
   if (result === "insufficient") return "The wallet or stock could not cover that.";
   if (result === "unfunded") return "The exceptional prize pool is not funded.";
-  if (result === "shop_pending") return "Shop key delivery is not built, and no key was created.";
+  if (result === "shop_pending") return "The key is still waiting on the shop. No key was created or posted.";
   if (result === "already_resolved" || result === "already_recorded" || result === "already_claimed" || result === "already_entered") return "That was already recorded.";
   if (result === "capped") return "The bonus cap is already used.";
   if (result === "tie_published") return "The tie is published.";

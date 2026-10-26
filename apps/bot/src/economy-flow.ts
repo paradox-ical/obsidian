@@ -12,6 +12,8 @@ import {
   type PrismaClient,
 } from "@collective/db";
 
+import { spokenAmount } from "./present.js";
+
 export interface EconomyCommand {
   name: string;
   subcommand?: string;
@@ -35,12 +37,21 @@ function whole(command: EconomyCommand, name: string): number | null {
 
 function walletText(wallet: Awaited<ReturnType<typeof readMemberWallet>>): string {
   if (wallet.marks.status !== "available") {
-    return "Marks are unavailable.";
+    return "The Marks pocket is closed.";
   }
   const ingots = wallet.ingots.status === "available"
-    ? `**${wallet.ingots.available}** available\n**${wallet.ingots.escrow}** in escrow`
+    ? `**${spokenAmount(wallet.ingots.available)}** on hand\n**${spokenAmount(wallet.ingots.escrow)}** in escrow`
     : wallet.ingots.status;
-  return `**Marks**\n**${wallet.marks.available}** available\n**${wallet.marks.escrow}** held\n\n**Ingots**\n${ingots}\n\n-# Balances are public.`;
+  return [
+    "**Marks**",
+    `**${spokenAmount(wallet.marks.available)}** on hand`,
+    `**${spokenAmount(wallet.marks.escrow)}** held`,
+    "",
+    "**Ingots**",
+    ingots,
+    "",
+    "-# The pocket is public. A life, if you have not taken one, is on `/character class`.",
+  ].join("\n");
 }
 
 export async function runEconomyCommand(db: PrismaClient, command: EconomyCommand): Promise<{ content: string }> {

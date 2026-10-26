@@ -1,6 +1,7 @@
 import type { MessageReaction, PartialMessageReaction, PartialUser, User } from "discord.js";
 import { staffRoleIds } from "@collective/domain";
 
+import { guideReply } from "./guide.js";
 import { outcomeHeading, presentOutcome } from "./present.js";
 import { scrubSecrets } from "./redact.js";
 import { readSlashOptions } from "./slash-options.js";
@@ -162,7 +163,10 @@ export async function startDiscordGateway(input: {
             component.customId.startsWith("publish:") ||
             component.customId.startsWith("session:") ||
             component.customId.startsWith("community:") ||
-            component.customId.startsWith("ticket:")));
+            component.customId.startsWith("ticket:") ||
+            component.customId.startsWith("character:") ||
+            component.customId.startsWith("combat:") ||
+            component.customId.startsWith("go:")));
       if (!relevant || !input.onInteraction) {
         return;
       }
@@ -246,16 +250,17 @@ export async function startDiscordGateway(input: {
           reply: async (content, extras) => {
             const file = extras && "bytes" in extras ? extras : extras?.file;
             const attachment = file ? [{ attachment: Buffer.from(file.bytes), name: file.filename }] : undefined;
-            const text = content.length > 1900 ? `${content.slice(0, 1890)}\nThe rest was cut so Discord could show this.` : content;
+            const text = content.length > 3400 ? `${content.slice(0, 3380)}\nThe rest was cut so Discord could show this.` : content;
             const source = command?.commandName ?? component?.customId ?? "Verification";
             const subcommand = command?.options.getSubcommand(false) ?? undefined;
-            const warning = /nothing was written|did not finish|not allowed|did not go through|unavailable|not completed/i.test(text);
+            const guided = guideReply(source, text, extras && "components" in extras ? extras.components : undefined);
+            const warning = /nothing was written|did not finish|not allowed|did not go through|unavailable|not completed/i.test(guided.body);
             const presented = presentOutcome({
               heading: outcomeHeading(source),
               ...(subcommand ? { detail: outcomeHeading(subcommand) } : {}),
-              body: text,
+              body: guided.body,
               warning,
-              ...(extras && "components" in extras && extras.components ? { rows: extras.components } : {}),
+              ...(guided.rows ? { rows: guided.rows } : {}),
               ...(file ? { fileName: file.filename } : {}),
             });
             const payload = {

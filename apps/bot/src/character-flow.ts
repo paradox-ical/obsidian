@@ -9,30 +9,72 @@ import {
   type PrismaClient,
 } from "@collective/db";
 
+import { buttonRow, type OutcomeRow } from "./present.js";
+
+export interface CharacterReply {
+  content: string;
+  components?: OutcomeRow[];
+}
+
+export function classChoiceRows(classes: ReadonlyArray<{ slug: string; name: string }>): OutcomeRow[] {
+  const buttons = classes.slice(0, 6).map((item) => ({ id: `character:class:${item.slug}`, label: item.name }));
+  return [buttonRow(buttons.slice(0, 3)), buttonRow(buttons.slice(3))].filter((row) => row.components.length > 0);
+}
+
+export function lifeNextRows(): OutcomeRow[] {
+  return [buttonRow([
+    { id: "character:stats", label: "The points" },
+    { id: "character:abilities", label: "The abilities" },
+  ])];
+}
+
+export function characterPress(customId: string): { subcommand: string; options: Record<string, string> } {
+  const [, action, slug] = customId.split(":");
+  if (action === "stats") {
+    return { subcommand: "stats", options: {} };
+  }
+  if (action === "abilities") {
+    return { subcommand: "abilities", options: {} };
+  }
+  return { subcommand: "class", options: slug ? { class: slug } : {} };
+}
+
 export async function runCharacterCommand(
   db: PrismaClient,
   input: { subcommand?: string; options: Record<string, string | boolean | number>; guildId: string; userId: string; now: Date },
-) {
+): Promise<CharacterReply> {
   const sheet = await readCharacter(db, input.guildId, input.userId, input.now);
   if (input.subcommand === "class") {
     const slug = text(input.options, "class");
     if (!slug) {
       if (sheet.status === "uncreated") {
-        return { content: `Six lives are open. Pick one.\n${sheet.classes.map((item) => `**${item.name}** — ${item.summary}`).join("\n")}\n\n-# Community chat does not grant character points.` };
+        return {
+          content: `Six lives are open. Press one. There is nothing to type.\n\n${sheet.classes.map((item) => `**${item.name}** — ${item.summary}`).join("\n")}\n\n-# Community chat does not grant character points.`,
+          components: classChoiceRows(sheet.classes),
+        };
       }
-      return { content: `**${sheet.className}**\nLevel ${sheet.level}\n${sheet.xpToNext} XP until the next level.` };
+      return {
+        content: `**${sheet.className}**\nLevel ${sheet.level}. ${sheet.xpToNext} XP until the next level.\n\nThe points and the abilities are on the buttons.`,
+        components: lifeNextRows(),
+      };
     }
     if (sheet.status === "ready") {
       return { content: "That life is already chosen. Changing it costs 15,000 Marks and includes a respec." };
     }
     const chosen = await chooseClass(db, { guildId: input.guildId, userId: input.userId, classSlug: slug, now: input.now });
     if (chosen.result === "chosen") {
-      return { content: `You take up the **${sheet.classes.find((item) => item.slug === slug)?.name ?? slug}**.\nLevel ${chosen.level}. ${chosen.unspentPoints} points are still unspent.` };
+      return {
+        content: `You take up the **${lifeName(sheet, slug)}**.\nLevel ${chosen.level}. ${chosen.unspentPoints} points are still unspent.\n\nThe passive is already working. The points and the abilities are next.`,
+        components: lifeNextRows(),
+      };
     }
     return { content: chosen.result === "missing_class" ? "That life is not on the books." : "A class is already chosen. The street does not hand out a second one for free." };
   }
   if (sheet.status === "uncreated") {
-    return { content: "Pick a class with `/character class` before the points will stick." };
+    return {
+      content: "There is no life on this sheet yet. Press one.\n\n-# Community chat does not grant character points.",
+      components: classChoiceRows(sheet.classes),
+    };
   }
   if (input.subcommand === "stats") {
     const stat = text(input.options, "stat");
@@ -50,6 +92,8 @@ export async function runCharacterCommand(
           `**Focus** ${sheet.effects.focus.bonus}`,
           "",
           `-# ${sheet.effects.strength.formula}`,
+          "",
+          "A practice fight is `/combat action`, against the Training Dummy.",
         ].join("\n"),
       };
     }
@@ -65,7 +109,7 @@ export async function runCharacterCommand(
   }
   if (input.subcommand === "abilities") {
     const lines = sheet.abilities.map((ability) => `**${ability.name}**\n${ability.kind} · unlocks at ${ability.unlockLevel} · cooldown ${ability.cooldownTurns}\n${ability.formula}`);
-    return { content: lines.join("\n\n") || "This life has not written its abilities yet." };
+    return { content: `${lines.join("\n\n") || "This life has not written its abilities yet."}\n\nEquip one with \`/character loadout\` when you want it in a fight.` };
   }
   if (input.subcommand === "respec") {
     const action = text(input.options, "action");

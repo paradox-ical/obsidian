@@ -8,7 +8,7 @@ export async function runExploreCommand(
     return runMission(db, input);
   }
   if (input.subcommand !== "expedition") {
-    return { content: "That explore action is not built." };
+    return { content: "Crew jobs live on `/crew`. An expedition or a mission is the explore path." };
   }
   const action = text(input.options, "action") || "preview";
   const region = text(input.options, "region") || "backstreets";

@@ -1,6 +1,7 @@
 import {
   correctInvite,
   listInviteHistory,
+  readCharacter,
   readPrivatePreferences,
   readPublicDossier,
   removeBirthday,
@@ -8,6 +9,9 @@ import {
   updateDossierPreferences,
   type PrismaClient,
 } from "@collective/db";
+
+import { classChoiceRows, lifeNextRows } from "./character-flow.js";
+import { spokenAmount, type OutcomeRow } from "./present.js";
 
 export interface ProgressionCommand {
   name: string;
@@ -19,16 +23,43 @@ export interface ProgressionCommand {
   now: Date;
 }
 
-export async function runProgressionCommand(db: PrismaClient, command: ProgressionCommand): Promise<{ content: string }> {
+export async function runProgressionCommand(
+  db: PrismaClient,
+  command: ProgressionCommand,
+): Promise<{ content: string; components?: OutcomeRow[] }> {
   if (command.name === "rank") {
     const dossier = await readPublicDossier(db, command.guildId, command.userId);
-    return { content: `Level ${dossier.level}, ${dossier.rankName ?? "unranked"}. ${marksLine(dossier.wallet)}` };
+    const sheet = await readCharacter(db, command.guildId, command.userId, command.now);
+    const open = sheet.status === "uncreated";
+    return {
+      content: [
+        `**${dossier.rankName ?? "Unranked"}**`,
+        `Level ${dossier.level}. ${open ? "The street has a rank for you, and no life yet." : `You are living the **${sheet.className}**.`}`,
+        "",
+        pocket(dossier.wallet),
+        "",
+        open
+          ? "The six lives are on the buttons. Press one. There is nothing to type."
+          : "The points and the abilities are on the buttons.",
+      ].join("\n"),
+      components: open ? classChoiceRows(sheet.classes) : lifeNextRows(),
+    };
   }
   if (command.name === "profile" && command.subcommand === "dossier") {
     const member = stringOption(command, "member") || command.userId;
     const dossier = await readPublicDossier(db, command.guildId, member);
-    const character = dossier.character.status === "ready" ? `${dossier.character.className} level ${dossier.character.level}.` : "No character yet.";
-    return { content: `${dossier.rankName ?? "Unranked"} level ${dossier.level}. ${marksLine(dossier.wallet)} ${character}` };
+    const life = dossier.character.status === "ready"
+      ? `**${dossier.character.className}**, level ${dossier.character.level}.`
+      : "No life chosen yet.";
+    return {
+      content: [
+        `**${dossier.rankName ?? "Unranked"}** · level ${dossier.level}`,
+        life,
+        "",
+        pocket(dossier.wallet),
+        dossier.bio ? `\n${dossier.bio}` : "",
+      ].join("\n"),
+    };
   }
   if (command.name === "profile" && command.subcommand === "privacy") {
     const visibility = stringOption(command, "visibility");
@@ -59,7 +90,16 @@ export async function runProgressionCommand(db: PrismaClient, command: Progressi
       announce: command.options["announce"] === true,
       now: command.now,
     });
-    return { content: saved.result === "cooldown" ? "That birthday edit is inside the cooldown." : `Birthday result: ${saved.result}.` };
+    if (saved.result === "cooldown") {
+      return { content: "That birthday edit is inside the cooldown." };
+    }
+    if (saved.result === "invalid_date") {
+      return { content: "That day does not exist." };
+    }
+    if (saved.result === "invalid_timezone") {
+      return { content: "That timezone was not accepted." };
+    }
+    return { content: "The birthday is stored. The gift waits for the day." };
   }
   if (command.name === "birthday" && command.subcommand === "privacy") {
     const current = await readPrivatePreferences(db, command.guildId, command.userId);
@@ -83,7 +123,7 @@ export async function runProgressionCommand(db: PrismaClient, command: Progressi
     return { content: "Birthday data removed." };
   }
   if (command.name === "birthday" && command.subcommand === "reminders") {
-    return { content: "The annual gift is recorded for the ledger and is not paid until that ledger exists." };
+    return { content: "The gift is paid on the day, once a birthday is set. This does not pay it early." };
   }
   if (command.name === "invites" && command.subcommand === "progress") {
     const history = await listInviteHistory(db, { guildId: command.guildId, actorUserId: command.userId, actorRoleIds: command.roleIds });
@@ -107,15 +147,24 @@ export async function runProgressionCommand(db: PrismaClient, command: Progressi
       reason: stringOption(command, "reason"),
       now: command.now,
     });
-    return { content: corrected.result === "denied" ? "You cannot correct invite attribution." : `Attribution result: ${corrected.result}.` };
+    if (corrected.result === "denied") {
+      return { content: "You cannot correct invite attribution." };
+    }
+    if (corrected.result === "missing") {
+      return { content: "That member has no invite record." };
+    }
+    if (corrected.result === "insufficient") {
+      return { content: "The attribution changed, but the recruitment Marks could not be reversed." };
+    }
+    return { content: corrected.result === "corrected" ? "The attribution is corrected." : "That attribution was not changed." };
   }
   return { content: "That progression control is not available on this command." };
 }
 
-function marksLine(wallet: { marks: { status: string; available?: string }; ingots: { status: string; available?: string } }): string {
-  const marks = wallet.marks.status === "available" && wallet.marks.available ? `${wallet.marks.available} Marks` : wallet.marks.status;
-  const ingots = wallet.ingots.status === "available" && wallet.ingots.available ? wallet.ingots.available : wallet.ingots.status;
-  return `Marks ${marks}. Ingots ${ingots}.`;
+function pocket(wallet: { marks: { status: string; available?: string }; ingots: { status: string; available?: string } }): string {
+  const marks = wallet.marks.status === "available" && wallet.marks.available ? `**${spokenAmount(wallet.marks.available)}** Marks` : wallet.marks.status;
+  const ingots = wallet.ingots.status === "available" && wallet.ingots.available ? `**${spokenAmount(wallet.ingots.available)}** Ingots` : wallet.ingots.status;
+  return `**Pocket**\n${marks}\n${ingots}`;
 }
 
 function stringOption(command: ProgressionCommand, name: string): string {

@@ -11,7 +11,7 @@ Verified 7 October 2026 from https://docs.discord.com/developers/interactions/ap
 - At most 25 options at each option level.
 - Discord also documents a global rate limit of 200 application command creates per day, per guild. This repository does not create commands.
 
-The project ceiling is 50 parent commands. The target is 36. `packages/domain/src/commands.ts` lists those parents as subcommand trees. Unit tests reject duplicate names, counts above the ceiling, and more than 25 options at one level. `/verify`, `/roles`, `/accounts`, and `/temproles` call the community services. The other parents remain routing panels. Commands are still not registered.
+The project ceiling is 50 parent commands. The target is 36. `packages/domain/src/commands.ts` lists those parents as subcommand trees. Unit tests reject duplicate names, counts above the ceiling, and more than 25 options at one level. The bot carries out all 36 parents, including `/help`, `/setup`, and `/reply`. Closed lists are Discord choices. A member, host, or challenge opponent is a user picker. A reply that can be posted still says nothing was posted when no message id exists. Commands are still not registered until the test-guild tool is run.
 
 ## Parent plan
 
@@ -38,21 +38,21 @@ The project ceiling is 50 parent commands. The target is 36. `packages/domain/sr
 | `/crew` | `persistent`, `session`, and `lfg`. A crew mission action opens the existing crew's Backstreets run. A one-member crew is short. A ready reply includes the rules and says the notice is not posted. |
 | `/prediction` | `free` and `staked`. Confirm shows the rules before a stake is held. Resolution evidence is required. |
 | `/contest` | `submit`, `ballot`, and `judge`. Ballots are stored. A published tie is not broken silently. |
-| `/giveaway` | `enter`, `bonus`, and `draw`. The draw uses the locked snapshot. A vault key says it is in the private inbox and was not posted. An empty vault says shop delivery is not built. |
+| `/giveaway` | `enter`, `bonus`, and `draw`. The draw uses the locked snapshot. A vault key says it is in the private inbox and was not posted. A key still waiting on the shop says no key was created or posted. |
 | `/publish` | `embed` and `review` point at the admin editor. Approve, Edit, Request changes, and Cancel are review buttons. `announce`, `pin`, and `sticky` point at the same admin tools and do not post. |
 | `/reply` | Authorised auto-reply rules and test |
 | `/lottery` | `tickets` quotes or buys. The quote shows odds, bonus, deadline, and the stall refund, and it does not charge. `draw` shows the open draw. `history` shows settled results. The reply says the notice is not posted. |
 | `/contracts` | `board`, `progress`, `reroll`, `settings`, and `custom`. A closed DM is not claimed as sent. Turning pings off does not stop the reward. |
-| `/combat` | `action` starts a quick or tactical test duel, or sends strike, defend, ability, or item. `records` reads a stored battle. `queue` joins, leaves, or accepts a casual or ranked queue. `challenge` offers, accepts, or cancels a direct match. The stake is an equal Marks amount, including zero. The reply says the notice is not posted. |
-| `/character` | `class`, `stats`, `abilities`, `respec`, and `loadout`. A respec costs 5,000 Marks. A class change costs 15,000 Marks. The reply does not claim a Discord post was sent. |
-| `/explore` | `expedition` previews or starts one timed run, or reads the stored report. `mission` previews, starts, chooses, checks, or fights a stored graph. `crew` stays on the crew command. A notice without a bot token stays setup-required and is not claimed as posted. |
+| `/combat` | `action` with no mode opens the floor. Quick and tactical practice, the casual and ranked queues, and leaving the queue are buttons. A tactical fight keeps strike, defend, ability, and item on the card. `records` reads a stored battle. `queue` and `challenge` do not join or offer until an action is chosen. A challenge opponent is a member picker. The stake is an equal Marks amount, including zero. The reply says nothing was posted. |
+| `/character` | `class` with nothing chosen puts the six lives on buttons. Stats and abilities are the next buttons. A respec costs 5,000 Marks. A class change costs 15,000 Marks. The reply does not claim a Discord post was sent. |
+| `/explore` | `expedition` previews or starts one timed run, or reads the stored report. `mission` previews, starts, chooses, checks, or fights a stored graph. `crew` opens that crew's Backstreets mission when a crew id is given, the same run as `/crew persistent`. A notice without a bot token stays setup-required and is not claimed as posted. |
 | `/inventory` | `gear` lists, equips, or unequips an instance. `materials`, `trade`, `craft`, `salvage`, `upgrade`, and `reroll` use the workshop. `crates` previews odds and pity, opens a stored result, or lists grants. Opening does not roll again. A reply that can be posted says the notice is not posted. |
 | `/profile` | `dossier`, `cosmetics`, `privacy`, `preferences` |
 | `/shop` | `supply` and `ingot` browse or buy. A Steam key stays in escrow until the private inbox is ready, and reveal says the key was not posted. `marketplace` browses, lists, buys, or cancels a fixed-price listing. The reply says the notice is not posted. |
 | `/blackjack` | `solo` and `social` quote, open, join, hit, stand, double, or split. `receipt` reads the stored result. The quote shows the rules version, the natural profit, and the reserved exposure. A reply that can be posted says the notice is not posted. |
 | `/deaddrop` | `board` shows the shared 6×6 grid, jackpot, and picks left. `pick` quotes or buys one covered cell. `reminder` opts into the opening notice. `special` sets the next staff reward or activates a held Market Collapse. A reply that can be posted says the notice is not posted. |
-| `/support` | `tickets` (open, list, close, reopen, claim, transfer, note, transcript, link), `rooms` (create, join, leave, close, claim, transfer, hold), `achievements`, `commendations` |
-| `/community` | `polls` (create, vote, results, close); `updates` and `manage` are not built |
+| `/support` | `tickets` (open, list, close, reopen, claim, transfer, note, transcript, link), `rooms` (create, join, leave, close, claim, transfer, hold). `achievements` reads the earned book. `commendations` reads the dossier, or records a peer commendation when a member, category, and reason are given. A commendation pays nothing. |
+| `/community` | `polls` (create, vote, results, close). `updates` lists stored feeds and recorded items. `manage` counts series, pins, stickies, reply rules, and alerts. Neither posts. |
 
 These names are a routing plan. They are not permission to drop a subfeature, and they are not deployed slash commands.
 

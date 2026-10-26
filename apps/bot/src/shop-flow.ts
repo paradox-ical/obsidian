@@ -31,7 +31,7 @@ export async function runSupplyCommand(
       const odds = offer.crate ? ` Odds version ${offer.crate.version}, pity ${offer.crate.pity} of ${offer.crate.threshold}.` : "";
       return `${offer.slug} costs ${offer.price} ${offer.currency}. Stock ${offer.stock}.${odds}`;
     });
-    return { content: `${lines.join(" ") || "No offers are open."} Member listings stay on the marketplace. The notice is not posted.` };
+    return { content: `${lines.join("\n") || "No offers are open."}\n\nMember listings stay on the marketplace. The notice is not posted.` };
   }
   if (action === "buy") {
     const bought = await buyOffer(db, { guildId: input.guildId, userId: input.userId, offerSlug: text(input.options, "offer"), idempotencyKey: `shop:${input.userId}:${text(input.options, "offer")}:${input.now.toISOString()}`, roleIds: input.roleIds ?? [], now: input.now });

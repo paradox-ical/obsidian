@@ -76,7 +76,10 @@ function command(name: string, summary: string, actions: Array<string | Subcomma
  * until the explicit test-guild tool is run.
  */
 export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
-  command("help", "Ask what a module does, or what you can do", ["search", "actions"]),
+  command("help", "Ask what a module does, or what you can do", [
+    { name: "search", description: "Look up a command", options: [{ name: "query", description: "A command or a word", type: "string", required: false }] },
+    { name: "actions", description: "What you can do from here", options: [] },
+  ]),
   command("setup", "Walk setup, or see what is still missing", ["wizard", "diagnostics", "mappings"]),
   command("verify", "Prove you are here, or ask for help", [
     {
@@ -351,11 +354,11 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
         { name: "action", description: "What to do with the event", type: "string", required: true },
         { name: "name", description: "Event name", type: "string", required: false },
         { name: "occurrence", description: "Occurrence id", type: "string", required: false },
-        { name: "host", description: "Host user id", type: "string", required: false },
+        { name: "host", description: "Who is hosting", type: "user", required: false },
         { name: "scope", description: "This night, or the whole run", type: "string", required: false },
         { name: "when", description: "ISO start time for a one-off event", type: "string", required: false },
         { name: "recap", description: "Recap text", type: "string", required: false },
-        { name: "member", description: "Member user id", type: "string", required: false },
+        { name: "member", description: "Which member", type: "user", required: false },
       ],
     },
     {
@@ -387,7 +390,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
         { name: "action", description: "What happens to the crew", type: "string", required: true },
         { name: "name", description: "Crew name", type: "string", required: false },
         { name: "crew", description: "Crew id", type: "string", required: false },
-        { name: "member", description: "Member user id", type: "string", required: false },
+        { name: "member", description: "Which member", type: "user", required: false },
       ],
     },
     {
@@ -404,7 +407,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
         { name: "when", description: "ISO start time", type: "string", required: false },
         { name: "size", description: "Session size", type: "integer", required: false },
         { name: "mode", description: "Who can walk in", type: "string", required: false },
-        { name: "member", description: "Member user id", type: "string", required: false },
+        { name: "member", description: "Which member", type: "user", required: false },
       ],
     },
     {
@@ -510,7 +513,10 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
     },
   ]),
   command("publish", "Drafts, announcements, pins, and stickies", ["embed", "review", "announce", "pin", "sticky"]),
-  command("reply", "Rules that answer for you", ["rules", "test"]),
+  command("reply", "Rules that answer for you", [
+    { name: "rules", description: "The rules that answer for you", options: [] },
+    { name: "test", description: "Try a phrase against the rules", options: [{ name: "text", description: "The phrase to try", type: "string", required: false }] },
+  ]),
   command("lottery", "Tickets for the open draw", [
     {
       name: "tickets",
@@ -563,7 +569,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "queue",
       description: "Join or leave a casual or ranked queue",
       options: [
-        { name: "action", description: "Step in, step out, or take the match", type: "string", required: true },
+        { name: "action", description: "Step in, step out, or take the match", type: "string", required: false },
         { name: "mode", description: "How the match is scored", type: "string", required: false },
         { name: "stake", description: "Equal Marks stake, or zero", type: "integer", required: false },
         { name: "match", description: "Match id for a casual proposal", type: "string", required: false },
@@ -573,8 +579,8 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "challenge",
       description: "Call someone out, or answer",
       options: [
-        { name: "action", description: "Offer the duel, or answer it", type: "string", required: true },
-        { name: "member", description: "Opponent user id", type: "string", required: false },
+        { name: "action", description: "Offer the duel, or answer it", type: "string", required: false },
+        { name: "member", description: "Who you are calling out", type: "user", required: false },
         { name: "mode", description: "How the match is scored", type: "string", required: false },
         { name: "stake", description: "Equal Marks stake, or zero", type: "integer", required: false },
         { name: "match", description: "Match id", type: "string", required: false },
@@ -585,7 +591,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       name: "action",
       description: "Fight a test opponent",
       options: [
-        { name: "mode", description: "How the fight is played", type: "string", required: true },
+        { name: "mode", description: "How the fight is played", type: "string", required: false },
         { name: "opponent", description: "Who is waiting on the floor", type: "string", required: false },
         { name: "battle", description: "Battle id", type: "string", required: false },
         { name: "move", description: "What you do this turn", type: "string", required: false },
@@ -644,7 +650,7 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
         { name: "notify", description: "Store a completion notice", type: "boolean", required: false },
       ],
     },
-    { name: "crew", description: "Crew missions stay on the crew command", options: [] },
+    { name: "crew", description: "Open a mission for a crew you name", options: [{ name: "crew", description: "Crew id", type: "string", required: false }] },
   ]),
   command("inventory", "What you carry, craft, break, and trade", [
     {
@@ -848,7 +854,15 @@ export const COMMAND_PARENTS: readonly ParentCommandPlan[] = [
       ],
     },
     "achievements",
-    "commendations",
+    {
+      name: "commendations",
+      description: "Read one, or leave one",
+      options: [
+        { name: "member", description: "Who it is for", type: "user", required: false },
+        { name: "category", description: "What it is for", type: "string", required: false },
+        { name: "reason", description: "Why, in a sentence", type: "string", required: false },
+      ],
+    },
   ]),
   command("community", "Polls, updates, and the community desk", [
     {
